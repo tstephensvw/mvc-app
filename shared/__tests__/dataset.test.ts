@@ -1,5 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { SERVICES, PREPOP, SOLAR_DEMO, GROUPS, TIERS, LENSES, WALKTHROUGH_SERVICE, PREFILLED_LENSES } from "../dataset/index.js";
+import {
+  SERVICES,
+  PREPOP,
+  SOLAR_DEMO,
+  GROUPS,
+  TIERS,
+  GENERIC_GROUPS,
+  GENERIC_TIERS,
+  LENSES,
+  WALKTHROUGH_SERVICE,
+  PREFILLED_LENSES,
+} from "../dataset/index.js";
 
 describe("HealthCo dataset integrity (single-source rule)", () => {
   it("has exactly 52 services with unique names", () => {
@@ -12,6 +23,18 @@ describe("HealthCo dataset integrity (single-source rule)", () => {
     expect(TIERS.map((t) => t.code)).toEqual(["t1", "t2", "t3", "t4", "t5"]);
     expect(LENSES.map((l) => l.code)).toEqual(["people", "process", "tech", "facilities", "thirdparty"]);
     expect(PREFILLED_LENSES).toEqual(["tech", "thirdparty"]);
+  });
+
+  it("sector-agnostic: generic engagement defaults share the locked codes/colors, with no sector-specific labels", () => {
+    expect(GENERIC_GROUPS.map((g) => g.code)).toEqual(GROUPS.map((g) => g.code));
+    GENERIC_GROUPS.forEach((g, i) => {
+      expect(g.color).toBe(GROUPS[i]!.color); // cross-tool color consistency holds from session one
+      expect(g.colorDark).toBe(GROUPS[i]!.colorDark);
+    });
+    expect(GENERIC_TIERS.map((t) => t.code)).toEqual(TIERS.map((t) => t.code)); // tier semantics locked
+    const sectorTerms = /clinical|health|patient|hospital|payer|member|pharma|medical/i;
+    for (const g of GENERIC_GROUPS) expect(sectorTerms.test(g.label + " " + g.desc), `sector term in group: ${g.label}`).toBe(false);
+    for (const t of GENERIC_TIERS) expect(sectorTerms.test(t.label + " " + t.desc), `sector term in tier: ${t.label}`).toBe(false);
   });
 
   it("PREPOP keys are exactly the 52 service names (BO1/BO2 cannot drift)", () => {

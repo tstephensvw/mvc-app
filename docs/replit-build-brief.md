@@ -14,6 +14,7 @@ This is the work order. `docs/architecture-decision.md` is the authority on *why
 - **Derived values** always come from `shared/derive`. API responses carry them as read-only fields.
 - **Visual language:** carry the suite's look — teal-on-white (`#00708c` accent family), Archivo + Source Serif 4 (Google Fonts with system-ui fallback), the four locked group colors from `shared/dataset/constants.ts`, and the red/amber/green/slate status chips used in the HTML tools (see `docs/reference/*.html` for exact styling cues). Present mode (large type, chrome hidden) on every module — these tools are projected in a room.
 - **Every module has:** an activity-log drawer (rendered from `events`), a Reset action that restores the module's EY-hypothesis state *and keeps the log* (writes a `reset` event), and export buttons (JSON / CSV / MD per module).
+- **Sector-agnostic (replit.md rule 10):** healthcare words appear only inside HealthCo engagement data. All product chrome, placeholders, empty states, and prompts use neutral vocabulary (service / dependency / organization). Example placeholders in inputs must be neutral too (e.g. "e.g. Order fulfillment", not "e.g. Dialysis services").
 
 ## Seed (runs when the DB is empty)
 
@@ -37,6 +38,7 @@ Create the **"HealthCo (Demo)"** engagement (`is_demo=true`) from `shared/datase
 
 - Tier matrix grid: rows = groups (locked colors), columns = 5 tiers; service chips drag-and-drop between tier cells. Chip shows a "moved" marker when `current_tier != seeded_tier`. Undo. Group presentation filter. Notes modal per service (with the EY-drafted description shown). Add service (origin `workshop`), soft-delete service, relabel tiers/groups, add group (palette from `GROUP_PALETTE`). Mark-round checkpoint events. Present mode.
 - Deep-dive flag per service (checkbox in the notes modal) — this is what narrows scope for BO2.
+- **New-engagement creation** (facilitator): name + client label → seeds groups/tiers from `GENERIC_GROUPS` / `GENERIC_TIERS` (sector-neutral), then the facilitator renames groups and tier labels to fit the client before or during the session. Services arrive via the add-service modal or (later slice) CSV import — a new engagement starts with an empty board, never with HealthCo content.
 - **Exports:** BO1 JSON matching `Bo1Export` exactly (validate with the schema in a test), two-block CSV via `twoBlockCsv()` matching the HTML-era column order (see `docs/reference/BO1prioritization_2.html` export functions), MD readout (net changes from hypothesis, adds, deletes, notes, full decision log).
 
 **Accept when:** login → see HealthCo BO1 board seeded with 52 services → drag a chip → event appears in the log drawer with seq+timestamp → reset restores placements but keeps the log → all three exports download and the JSON parses with `Bo1Export` → `npm test` green → deployed and reachable.

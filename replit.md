@@ -34,6 +34,7 @@ TypeScript everywhere. React 18 + Vite client, Express API + `ws` WebSockets, Dr
 7. **AI outputs are draft-gated.** Anything model-generated lands in `ai_drafts` with `status='draft'` and enters the record only through an explicit facilitator accept (which emits an `ai_accept` event). Server-side Anthropic SDK only; never expose the API key to the client.
 8. **User-facing copy** describes the product as an "AI-enabled facilitation tool" — never by its technical construction. No regulatory-framework citations or control IDs anywhere in the tool UI.
 9. Follow the repo's derived logic: if you need a status, a slug, a SPoF flag, or a concentration count, import it from `shared/derive` — do not re-implement.
+10. **Sector-agnostic product.** The demo engagement happens to be healthcare (HealthCo), but the tool serves any sector — banking, energy, manufacturing, government, retail. Healthcare terms may appear ONLY inside the HealthCo engagement's data. Never in: schema, enums, API routes, UI chrome/labels/placeholders/empty states, error messages, export headers, or AI prompt templates. New engagements seed from `GENERIC_GROUPS` / `GENERIC_TIERS` (sector-neutral); groups and tier labels are configured per engagement. Say "service", "dependency", "organization" — never "patient", "clinical", "hospital" — in product copy. (Only the five lenses and the ordered tier codes t1–t5 are locked suite-wide.)
 
 ## Build order
 

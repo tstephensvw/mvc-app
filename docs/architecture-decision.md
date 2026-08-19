@@ -45,6 +45,7 @@ From the brief §1 and §3, restated as design inputs:
 9. **Exports are the client boundary** — export fidelity with the HTML-era formats is a hard requirement (downstream AI-synthesis pipelines already consume them).
 10. **"AI-enabled facilitation tool"** is the only positioning language in user-facing copy.
 11. **Hostile Wi-Fi assumption** — offline tolerance is a requirement.
+12. **Sector-agnostic product** (Tim, 2026-08-19): the engagement that produced this suite was healthcare, but the tool serves any sector. Sector-specific vocabulary exists only as *engagement data* (the HealthCo demo). Nothing sector-specific in schema, enums, product copy, export headers, or AI prompts; new engagements seed from sector-neutral defaults (`GENERIC_GROUPS`/`GENERIC_TIERS` in `shared/dataset`), with groups and tier labels configured per engagement. Only the five lenses and the ordered tier codes are locked suite-wide — those are sector-neutral by design.
 
 ---
 

@@ -1,6 +1,6 @@
 # ERW Suite MVP — Architecture Decision Document
 
-**Status:** Rev 2 — all six open questions answered by Tim (2026-08-19); resolutions folded in below (§15). Awaiting final approval before scaffolding.
+**Status:** Rev 3 — approved for build. The Replit handoff package is scaffolded in this repo: `replit.md` + `docs/replit-build-brief.md` (the work order), with the fidelity-critical core pre-built and tested in `shared/` and `db/` (dataset, contracts, derive logic, export builders, DB schema).
 **Author:** Claude Code, from `ERW_Suite_Handoff_Brief.md` plus source review of `BO1prioritization_2.html`, `BO2dependencymapping_2.html`, `BO4workaroundreadiness_2.html`, and `CBS_Solar_Map_Interactive_DEMO.html` (all verified generic demo builds; BO3 specified from the brief and from BO4's BO3-importer contract). Master-workbook shape (Appendix A) extracted from the engagement master workbook — **structure, labels, and formatting only; no client data was carried into this repo or document.**
 **Date:** 2026-08-19
 

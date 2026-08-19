@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<!--
+CBS SOLAR DEPENDENCY MAP — GENERIC DEMO BUILD (2026-07-30). Owner: EY.
+
+PROVENANCE / WARNING:
+This file was derived from an interactive map that contained LIVE CLIENT DATA — real
+facility names, named individuals, named vendors, and workaround-readiness ratings
+against those named systems. The entire ALL_CBS dataset was REPLACED, not edited.
+The fictional "HealthCo" dataset here is the same vocabulary used by the BO1 and BO2
+demo builds so the three tools tell one consistent story.
+
+Do not merge this file back over the client working copy. Do not re-import a client
+JSON export into this file and then present from it.
+
+DECISION NOTES:
+- Inpatient Nursing Units carries exactly the 12 dependencies seeded in BO2_DEMO.
+  The three BO2 "unreviewed" items appear here as "na" / not assessed.
+- RTO is displayed as a derived attribute only; it is never scored or entered as a
+  prioritisation criterion (suite rule).
+- Legibility pass 2026-07-30: type and dot sizes raised for screen-share reading.
+  No layout maths, export logic, or status taxonomy was changed.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CBS Dependency Map — Interactive (Demo)</title>
+<style>
+  :root{--ink:#2E2E38;--sub:#55585F;--faint:#9094A0;--teal:#15605F;--tealBr:#27ACAA;
+    --red:#E0301E;--amber:#E8902A;--green:#2DB757;--na:#BFC4CC;--line:#D5D8DE;--panel:#F4F5F7;}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:Arial,"Helvetica Neue",Helvetica,sans-serif;color:var(--ink);background:#fff}
+  .app{display:flex;height:100vh;min-height:660px}
+  .stage{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;padding:12px 6px 6px 16px}
+  .stage h1{font-size:18px;letter-spacing:1.5px;color:var(--tealBr);margin:0 0 2px 4px;font-weight:bold}
+  .stage .sub{font-size:13px;color:var(--faint);margin:0 0 5px 4px}
+  .demotag{font-size:10px;letter-spacing:.06em;font-weight:bold;color:#fff;background:var(--tealBr);border-radius:4px;padding:3px 7px;margin-left:9px;vertical-align:middle}
+  #svgWrap{flex:1 1 auto;min-height:0}
+  svg{width:100%;height:100%;display:block}
+  .panel{flex:0 0 372px;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:14px 18px 28px}
+  .panel h2{font-size:12.5px;letter-spacing:1px;color:var(--faint);font-weight:bold;margin:18px 0 8px;text-transform:uppercase}
+  .panel h2:first-of-type{margin-top:14px}
+  label{display:block;font-size:12.5px;color:var(--sub);margin:9px 0 4px}
+  input[type=text],select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:14.5px;background:#fff;color:var(--ink)}
+  input[type=text]:focus,select:focus{outline:none;border-color:var(--tealBr)}
+  #cbsPick{font-weight:bold;font-size:15px;border-color:#c7ccd4}
+  button{font:inherit;font-size:14px;font-weight:bold;border:none;border-radius:6px;padding:10px 12px;cursor:pointer;background:var(--ink);color:#fff}
+  button.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  button.sec:hover{background:#eef0f3}
+  button:hover{filter:brightness(1.08)}
+  .statusbtns{display:flex;gap:5px;margin-top:4px;flex-wrap:wrap}
+  .statusbtns button{flex:1 1 46%;color:#fff;padding:9px 5px;font-size:12.5px}
+  .sb-crit{background:var(--red)}.sb-atrisk{background:var(--amber)}.sb-res{background:var(--green)}
+  .sb-na{background:#9aa0a8}
+  .statusbtns button[aria-pressed=false]{opacity:.30}
+  .card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px}
+  .hint{font-size:12.5px;color:var(--sub);background:#fff;border:1px dashed var(--line);border-radius:8px;padding:10px 12px;line-height:1.5;margin-bottom:4px}
+  .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}.btnrow button{flex:1 1 46%}
+  .none{font-size:13.5px;color:var(--faint);font-style:italic}
+  .meta{font-size:12.5px;color:var(--faint);margin:7px 0 0 1px}
+  .delbtn{background:#fff;color:var(--red);border:1px solid #f0c4bf;margin-top:10px;width:100%}
+  .delbtn:hover{background:#fcebe9}
+  .dot{cursor:pointer}
+  .dot:hover{stroke:#2E2E38;stroke-width:2.4}
+  .dot.sel{stroke:#2E2E38;stroke-width:3}
+  .lbl{fill:var(--ink);pointer-events:none;user-select:none}
+  .lbl.sel{font-weight:bold}
+  .chip{font-weight:bold;fill:var(--teal);pointer-events:none;paint-order:stroke;stroke:#fff;stroke-width:5px;stroke-linejoin:round}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="stage">
+    <h1>CBS DEPENDENCY MAP <span class="demotag">DEMO DATASET · FICTIONAL CLIENT</span></h1>
+    <div class="sub">HealthCo (fictional client) · Interactive working view · click a dot to cycle its status · colour = workaround readiness</div>
+    <div id="svgWrap"></div>
+  </div>
+  <div class="panel">
+    <h2>Critical business service</h2>
+    <select id="cbsPick"></select>
+    <div class="meta" id="cbsMeta"></div>
+    <label>Name (shown in the sun)</label>
+    <input type="text" id="cbsName">
+    <label>RTO / subtitle</label>
+    <input type="text" id="cbsRto">
+
+    <h2>Add a dependency</h2>
+    <div class="card">
+      <label>Lens</label><select id="addLens"></select>
+      <label>Name</label><input type="text" id="addName" placeholder="e.g. Medication Dispensing Cabinets">
+      <label>Workaround status</label>
+      <select id="addStatus">
+        <option value="crit">Critical gap — no viable workaround</option>
+        <option value="atrisk" selected>At risk — workaround unproven / manual</option>
+        <option value="res">Resilient — documented &amp; tested</option>
+        <option value="na">Not assessed</option>
+      </select>
+      <div class="btnrow"><button id="addBtn">Add dependency</button></div>
+    </div>
+
+    <h2>Selected dependency</h2>
+    <div id="editor"><div class="none">Click a dot on the map to select it.</div></div>
+
+    <h2>Save &amp; export</h2>
+    <div class="hint">Pick a CBS above to load it. Click any dot to cycle its status (incl. grey “not assessed”). Export the PNG for the deck, or JSON to round-trip with the slide generator.</div>
+    <div class="btnrow">
+      <button class="sec" id="pngBtn">Export PNG</button>
+      <button class="sec" id="pdfBtn">Export PDF</button>
+      <button class="sec" id="pptxBtn">Export PPTX</button>
+    </div>
+    <div class="btnrow">
+      <button class="sec" id="jsonBtn">Export JSON</button>
+      <button class="sec" id="importBtn">Import JSON</button>
+      <button class="sec" id="resetBtn">Reset CBS</button>
+    </div>
+    <input type="file" id="fileInput" accept="application/json" style="display:none">
+  </div>
+</div>
+<script>
+"use strict";
+// ===== shared pure builders (run in Node for testing AND embed in the browser) =====
+const ENC = new TextEncoder();
+function cat(arrs){let n=0;for(const a of arrs)n+=a.length;const o=new Uint8Array(n);let p=0;for(const a of arrs){o.set(a,p);p+=a.length;}return o;}
+function BYT(s){return ENC.encode(s);}
+function u16(n){return new Uint8Array([n&255,(n>>8)&255]);}
+function u32(n){return new Uint8Array([n&255,(n>>8)&255,(n>>16)&255,(n>>>24)&255]);}
+
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c>>>0;}return t;})();
+function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC_T[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+
+function zip(files){ // files:[{name,data:Uint8Array}] — STORE (no compression)
+  const local=[],central=[]; let off=0;
+  for(const f of files){
+    const nm=BYT(f.name),d=f.data,crc=crc32(d);
+    const lh=cat([u32(0x04034b50),u16(20),u16(0),u16(0),u16(0),u16(0),u32(crc),u32(d.length),u32(d.length),u16(nm.length),u16(0),nm]);
+    local.push(lh,d);
+    central.push(cat([u32(0x02014b50),u16(20),u16(20),u16(0),u16(0),u16(0),u16(0),u32(crc),u32(d.length),u32(d.length),u16(nm.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(off),nm]));
+    off+=lh.length+d.length;
+  }
+  const cd=cat(central);
+  const eocd=cat([u32(0x06054b50),u16(0),u16(0),u16(files.length),u16(files.length),u32(cd.length),u32(off),u16(0)]);
+  return cat([...local,cd,eocd]);
+}
+
+function buildPDF(jpg,pxW,pxH,pageW,pageH){
+  const parts=[]; let len=0; const off=[];
+  const put=s=>{const b=(s instanceof Uint8Array)?s:BYT(s); parts.push(b); len+=b.length;};
+  const obj=(n,body)=>{off[n]=len; put(n+" 0 obj\n"+body+"\nendobj\n");};
+  put("%PDF-1.4\n");
+  obj(1,"<< /Type /Catalog /Pages 2 0 R >>");
+  obj(2,"<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+  obj(3,"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 "+pageW+" "+pageH+"] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>");
+  off[4]=len;
+  put("4 0 obj\n<< /Type /XObject /Subtype /Image /Width "+pxW+" /Height "+pxH+" /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length "+jpg.length+" >>\nstream\n");
+  put(jpg); put("\nendstream\nendobj\n");
+  const content="q "+pageW+" 0 0 "+pageH+" 0 0 cm /Im0 Do Q";
+  obj(5,"<< /Length "+content.length+" >>\nstream\n"+content+"\nendstream");
+  const xrefStart=len;
+  let x="xref\n0 6\n0000000000 65535 f \n";
+  for(let i=1;i<=5;i++) x+=String(off[i]).padStart(10,"0")+" 00000 n \n";
+  put(x); put("trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n"+xrefStart+"\n%%EOF");
+  return cat(parts);
+}
+
+const A='xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"';
+const R='xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+const P='xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"';
+const REL='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+function buildPPTX(png,pxW,pxH){
+  const SW=12192000, SH=6858000, ar=pxW/pxH;
+  let cx=SH*ar, cy=SH, ox, oy;
+  if(cx>SW){ cx=SW; cy=SW/ar; } cx=Math.round(cx); cy=Math.round(cy);
+  ox=Math.round((SW-cx)/2); oy=Math.round((SH-cy)/2);
+  const xml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+  const grp='<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>';
+  const files=[
+   {name:'[Content_Types].xml',data:BYT(xml+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/slides/slide1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/></Types>')},
+   {name:'_rels/.rels',data:BYT(xml+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="'+REL+'/officeDocument" Target="ppt/presentation.xml"/></Relationships>')},
+   {name:'ppt/presentation.xml',data:BYT(xml+'<p:presentation '+A+' '+R+' '+P+'><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldIdLst><p:sldId id="256" r:id="rId2"/></p:sldIdLst><p:sldSz cx="12192000" cy="6858000"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>')},
+   {name:'ppt/_rels/presentation.xml.rels',data:BYT(xml+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="'+REL+'/slideMaster" Target="slideMasters/slideMaster1.xml"/><Relationship Id="rId2" Type="'+REL+'/slide" Target="slides/slide1.xml"/><Relationship Id="rId3" Type="'+REL+'/theme" Target="theme/theme1.xml"/></Relationships>')},
+   {name:'ppt/slideMasters/slideMaster1.xml',data:BYT(xml+'<p:sldMaster '+A+' '+R+' '+P+'><p:cSld><p:bg><p:bgRef idx="1001"><a:schemeClr val="bg1"/></p:bgRef></p:bg><p:spTree>'+grp+'</p:spTree></p:cSld><p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/><p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst><p:txStyles><p:titleStyle/><p:bodyStyle/><p:otherStyle/></p:txStyles></p:sldMaster>')},
+   {name:'ppt/slideMasters/_rels/slideMaster1.xml.rels',data:BYT(xml+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="'+REL+'/slideLayout" Target="../slideLayouts/slideLayout1.xml"/><Relationship Id="rId2" Type="'+REL+'/theme" Target="../theme/theme1.xml"/></Relationships>')},
+   {name:'ppt/slideLayouts/slideLayout1.xml',data:BYT(xml+'<p:sldLayout '+A+' '+R+' '+P+' type="blank" preserve="1"><p:cSld name="Blank"><p:spTree>'+grp+'</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>')},
+   {name:'ppt/slideLayouts/_rels/slideLayout1.xml.rels',data:BYT(xml+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="'+REL+'/slideMaster" Target="../slideMasters/slideMaster1.xml"/></Relationships>')},
+   {name:'ppt/slides/slide1.xml',data:BYT(xml+'<p:sld '+A+' '+R+' '+P+'><p:cSld><p:spTree>'+grp+'<p:pic><p:nvPicPr><p:cNvPr id="2" name="Solar Map"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="'+ox+'" y="'+oy+'"/><a:ext cx="'+cx+'" cy="'+cy+'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic></p:spTree></p:cSld></p:sld>')},
+   {name:'ppt/slides/_rels/slide1.xml.rels',data:BYT(xml+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="'+REL+'/image" Target="../media/image1.png"/><Relationship Id="rId2" Type="'+REL+'/slideLayout" Target="../slideLayouts/slideLayout1.xml"/></Relationships>')},
+   {name:'ppt/theme/theme1.xml',data:BYT(xml+THEME())},
+   {name:'ppt/media/image1.png',data:png},
+  ];
+  return zip(files);
+}
+function THEME(){
+  const sc=(n,v)=>'<a:'+n+'><a:srgbClr val="'+v+'"/></a:'+n+'>';
+  const clr='<a:clrScheme name="EY"><a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1><a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1>'+sc('dk2','2E2E38')+sc('lt2','F4F5F7')+sc('accent1','27ACAA')+sc('accent2','FFE600')+sc('accent3','2DB757')+sc('accent4','188CE5')+sc('accent5','750E5C')+sc('accent6','E0301E')+sc('hlink','188CE5')+sc('folHlink','750E5C')+'</a:clrScheme>';
+  const font='<a:fontScheme name="Arial"><a:majorFont><a:latin typeface="Arial"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Arial"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme>';
+  const solid='<a:solidFill><a:schemeClr val="phClr"/></a:solidFill>';
+  const line='<a:ln w="9525" cap="flat" cmpd="sng" algn="ctr">'+solid+'<a:prstDash val="solid"/></a:ln>';
+  const fmt='<a:fmtScheme name="Office"><a:fillStyleLst>'+solid+solid+solid+'</a:fillStyleLst><a:lnStyleLst>'+line+line+line+'</a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst>'+solid+solid+solid+'</a:bgFillStyleLst></a:fmtScheme>';
+  return '<a:theme '+A+' name="EY"><a:themeElements>'+clr+font+fmt+'</a:themeElements><a:objectDefaults/><a:extraClrSchemeLst/></a:theme>';
+}
+
+
+const ALL_CBS = {"Inpatient Nursing Units": {"rto": "RTO  < 4 Hours", "pillar": "Clinical", "deps": [{"lens": "PEOPLE", "name": "Charge Nurse Coverage (per unit, per shift)", "status": "atrisk"}, {"lens": "PEOPLE", "name": "Float Pool & Agency Nurse Staffing", "status": "na"}, {"lens": "PROCESS", "name": "Shift Handoff & Bedside Report", "status": "res"}, {"lens": "PROCESS", "name": "Downtime Documentation Procedure (paper fallback)", "status": "na"}, {"lens": "TECHNOLOGY", "name": "MediCore EHR", "status": "crit"}, {"lens": "TECHNOLOGY", "name": "VitalWatch Patient Monitoring", "status": "crit"}, {"lens": "TECHNOLOGY", "name": "PharmaTrack Dispensing Cabinets", "status": "atrisk"}, {"lens": "TECHNOLOGY", "name": "IntegraLink Interface Engine", "status": "na"}, {"lens": "FACILITIES", "name": "Med-Surg Unit Physical Access & Badge Control", "status": "res"}, {"lens": "FACILITIES", "name": "Emergency Power to Patient Care Areas", "status": "res"}, {"lens": "THIRD PARTIES", "name": "MediCore Systems Inc. (EHR vendor)", "status": "atrisk"}, {"lens": "THIRD PARTIES", "name": "Reliant Staffing Group", "status": "atrisk"}]}, "Emergency Department & Trauma": {"rto": "RTO  < 4 Hours", "pillar": "Clinical", "deps": [{"lens": "PEOPLE", "name": "Emergency Physician & Trauma Team Coverage", "status": "atrisk"}, {"lens": "PEOPLE", "name": "Triage RN Staffing", "status": "atrisk"}, {"lens": "PROCESS", "name": "Diversion & Surge Escalation Protocol", "status": "res"}, {"lens": "PROCESS", "name": "Mass Casualty Activation", "status": "atrisk"}, {"lens": "TECHNOLOGY", "name": "MediCore EHR", "status": "crit"}, {"lens": "TECHNOLOGY", "name": "VitalWatch Patient Monitoring", "status": "crit"}, {"lens": "TECHNOLOGY", "name": "RadView PACS", "status": "atrisk"}, {"lens": "TECHNOLOGY", "name": "LabLine LIS", "status": "atrisk"}, {"lens": "TECHNOLOGY", "name": "IntegraLink Interface Engine", "status": "crit"}, {"lens": "FACILITIES", "name": "Ambulance Bay & Decontamination Suite", "status": "res"}, {"lens": "FACILITIES", "name": "Emergency Power to Patient Care Areas", "status": "res"}, {"lens": "THIRD PARTIES", "name": "MediCore Systems Inc. (EHR vendor)", "status": "atrisk"}, {"lens": "THIRD PARTIES", "name": "Vantage Medical Devices", "status": "atrisk"}, {"lens": "THIRD PARTIES", "name": "LinguaCall Interpretation Services", "status": "na"}]}, "Clinical Laboratory": {"rto": "RTO  4–24 Hours", "pillar": "Clinical", "deps": [{"lens": "PEOPLE", "name": "Medical Technologist Coverage (night shift)", "status": "atrisk"}, {"lens": "PROCESS", "name": "Specimen Chain of Custody", "status": "res"}, {"lens": "PROCESS", "name": "Manual Result Callback Procedure", "status": "na"}, {"lens": "TECHNOLOGY", "name": "LabLine LIS", "status": "crit"}, {"lens": "TECHNOLOGY", "name": "MediCore EHR", "status": "atrisk"}, {"lens": "TECHNOLOGY", "name": "IntegraLink Interface Engine", "status": "crit"}, {"lens": "TECHNOLOGY", "name": "InsightBI Analytics", "status": "res"}, {"lens": "FACILITIES", "name": "Core Lab HVAC & Specimen Refrigeration", "status": "atrisk"}, {"lens": "THIRD PARTIES", "name": "Crestline Reference Laboratories", "status": "atrisk"}, {"lens": "THIRD PARTIES", "name": "MedSupply Logistics", "status": "res"}]}, "Enterprise Command Center": {"rto": "RTO  < 4 Hours", "pillar": "IT-Cyber", "deps": [{"lens": "PEOPLE", "name": "Incident Commander On Call", "status": "atrisk"}, {"lens": "PEOPLE", "name": "Security Operations Lead", "status": "atrisk"}, {"lens": "PEOPLE", "name": "Executive Communications Liaison", "status": "res"}, {"lens": "PROCESS", "name": "Incident Runbooks & Escalation Tree", "status": "res"}, {"lens": "PROCESS", "name": "Out-of-Band Communication Fallback", "status": "na"}, {"lens": "TECHNOLOGY", "name": "ReachAll Mass Notification", "status": "crit"}, {"lens": "TECHNOLOGY", "name": "DeskFlow ITSM", "status": "atrisk"}, {"lens": "TECHNOLOGY", "name": "NetPulse Network Monitoring", "status": "atrisk"}, {"lens": "FACILITIES", "name": "Primary Command Suite", "status": "atrisk"}, {"lens": "FACILITIES", "name": "Alternate Command Site", "status": "na"}, {"lens": "THIRD PARTIES", "name": "MetroNet Communications", "status": "atrisk"}, {"lens": "THIRD PARTIES", "name": "Sentinel Managed Security", "status": "crit"}]}, "Network & Connectivity": {"rto": "RTO  < 4 Hours", "pillar": "IT-Cyber", "deps": [{"lens": "PEOPLE", "name": "Network Operations On Call", "status": "atrisk"}, {"lens": "PEOPLE", "name": "Network Architect (single deep expert)", "status": "crit"}, {"lens": "PROCESS", "name": "Change Freeze & Emergency Change Path", "status": "res"}, {"lens": "TECHNOLOGY", "name": "NetPulse Network Monitoring", "status": "atrisk"}, {"lens": "TECHNOLOGY", "name": "OneID SSO & MFA", "status": "crit"}, {"lens": "TECHNOLOGY", "name": "DeskFlow ITSM", "status": "res"}, {"lens": "FACILITIES", "name": "Campus Communication Closets", "status": "atrisk"}, {"lens": "FACILITIES", "name": "Carrier Entry Facility", "status": "crit"}, {"lens": "THIRD PARTIES", "name": "MetroNet Communications", "status": "crit"}, {"lens": "THIRD PARTIES", "name": "SkyVault Cloud Inc.", "status": "atrisk"}]}, "Identity & Access Management": {"rto": "RTO  < 4 Hours", "pillar": "IT-Cyber", "deps": [{"lens": "PEOPLE", "name": "IAM Engineering Coverage", "status": "atrisk"}, {"lens": "PROCESS", "name": "Emergency Access / Break-Glass Procedure", "status": "atrisk"}, {"lens": "PROCESS", "name": "Access Recertification", "status": "na"}, {"lens": "TECHNOLOGY", "name": "OneID SSO & MFA", "status": "crit"}, {"lens": "TECHNOLOGY", "name": "DeskFlow ITSM", "status": "res"}, {"lens": "TECHNOLOGY", "name": "ShieldSIEM Security Analytics", "status": "atrisk"}, {"lens": "FACILITIES", "name": "Primary Data Hall", "status": "atrisk"}, {"lens": "THIRD PARTIES", "name": "Sentinel Managed Security", "status": "atrisk"}, {"lens": "THIRD PARTIES", "name": "SkyVault Cloud Inc.", "status": "atrisk"}]}, "Data Center & Cloud Hosting": {"rto": "RTO  < 4 Hours", "pillar": "IT-Cyber", "deps": [{"lens": "PEOPLE", "name": "Platform & Hosting Operations", "status": "atrisk"}, {"lens": "PEOPLE", "name": "Storage Engineering", "status": "atrisk"}, {"lens": "PROCESS", "name": "Failover Runbook & Restore Test Cadence", "status": "na"}, {"lens": "TECHNOLOGY", "name": "SkyVault Cloud Hosting", "status": "crit"}, {"lens": "TECHNOLOGY", "name": "VaultSync Backup & Restore", "status": "atrisk"}, {"lens": "TECHNOLOGY", "name": "NetPulse Network Monitoring", "status": "res"}, {"lens": "TECHNOLOGY", "name": "OneID SSO & MFA", "status": "crit"}, {"lens": "FACILITIES", "name": "Primary Data Hall", "status": "atrisk"}, {"lens": "FACILITIES", "name": "Generator & Battery Backup Plant", "status": "res"}, {"lens": "THIRD PARTIES", "name": "SkyVault Cloud Inc.", "status": "crit"}, {"lens": "THIRD PARTIES", "name": "Commonwealth Power & Light", "status": "atrisk"}, {"lens": "THIRD PARTIES", "name": "MetroNet Communications", "status": "atrisk"}]}, "Emergent Care Authorization": {"rto": "RTO  < 4 Hours", "pillar": "Health Plan", "deps": [{"lens": "PEOPLE", "name": "Medical Director On Call", "status": "atrisk"}, {"lens": "PEOPLE", "name": "Authorization Nurse Reviewers", "status": "atrisk"}, {"lens": "PROCESS", "name": "Auto-Approval Fallback Under Outage", "status": "na"}, {"lens": "TECHNOLOGY", "name": "ClaimBridge Core Admin", "status": "crit"}, {"lens": "TECHNOLOGY", "name": "AuthPoint UM Platform", "status": "crit"}, {"lens": "TECHNOLOGY", "name": "ContactOne Call Center Platform", "status": "atrisk"}, {"lens": "TECHNOLOGY", "name": "IntegraLink Interface Engine", "status": "atrisk"}, {"lens": "FACILITIES", "name": "N/A — infrastructure dependent", "status": "na"}, {"lens": "THIRD PARTIES", "name": "ClearPath Clearinghouse", "status": "atrisk"}, {"lens": "THIRD PARTIES", "name": "PayerLink EDI Services", "status": "res"}]}, "Urgent Pharmacy Prior Authorization": {"rto": "RTO  < 4 Hours", "pillar": "Health Plan", "deps": [{"lens": "PEOPLE", "name": "Clinical Pharmacist Reviewers", "status": "atrisk"}, {"lens": "PROCESS", "name": "Emergency Supply Override", "status": "res"}, {"lens": "TECHNOLOGY", "name": "ClaimBridge Core Admin", "status": "crit"}, {"lens": "TECHNOLOGY", "name": "AuthPoint UM Platform", "status": "crit"}, {"lens": "TECHNOLOGY", "name": "ContactOne Call Center Platform", "status": "atrisk"}, {"lens": "FACILITIES", "name": "N/A — infrastructure dependent", "status": "na"}, {"lens": "THIRD PARTIES", "name": "NationalRx PBM", "status": "crit"}, {"lens": "THIRD PARTIES", "name": "ClearPath Clearinghouse", "status": "atrisk"}]}, "Member Services (urgent inquiries)": {"rto": "RTO  4–24 Hours", "pillar": "Health Plan", "deps": [{"lens": "PEOPLE", "name": "Member Services Representatives", "status": "res"}, {"lens": "PEOPLE", "name": "Bilingual Coverage", "status": "atrisk"}, {"lens": "PROCESS", "name": "Overflow & After-Hours Routing", "status": "atrisk"}, {"lens": "TECHNOLOGY", "name": "ContactOne Call Center Platform", "status": "crit"}, {"lens": "TECHNOLOGY", "name": "ClaimBridge Core Admin", "status": "atrisk"}, {"lens": "TECHNOLOGY", "name": "CareLink Patient Portal", "status": "res"}, {"lens": "FACILITIES", "name": "Contact Center Site", "status": "atrisk"}, {"lens": "FACILITIES", "name": "Remote Agent Connectivity", "status": "na"}, {"lens": "THIRD PARTIES", "name": "LinguaCall Interpretation Services", "status": "atrisk"}, {"lens": "THIRD PARTIES", "name": "PayerLink EDI Services", "status": "res"}]}, "Clinical Supply Distribution": {"rto": "RTO  4–24 Hours", "pillar": "Back Office / Supply Chain", "deps": [{"lens": "PEOPLE", "name": "Distribution Center Staffing", "status": "atrisk"}, {"lens": "PEOPLE", "name": "Courier & Transport Drivers", "status": "atrisk"}, {"lens": "PROCESS", "name": "Par Level Management & Emergency Pull", "status": "res"}, {"lens": "PROCESS", "name": "Substitution Approval Under Shortage", "status": "na"}, {"lens": "TECHNOLOGY", "name": "StockRoom Inventory Management", "status": "crit"}, {"lens": "TECHNOLOGY", "name": "CoreERP Finance & HR", "status": "atrisk"}, {"lens": "TECHNOLOGY", "name": "MediCore EHR", "status": "res"}, {"lens": "FACILITIES", "name": "Central Distribution Warehouse", "status": "crit"}, {"lens": "FACILITIES", "name": "Loading Docks & Cold Chain Storage", "status": "atrisk"}, {"lens": "THIRD PARTIES", "name": "MedSupply Logistics", "status": "crit"}, {"lens": "THIRD PARTIES", "name": "RxDirect Pharmaceutical Distribution", "status": "atrisk"}]}, "Payroll & Benefits Administration": {"rto": "RTO  1–3 Days", "pillar": "Back Office / Supply Chain", "deps": [{"lens": "PEOPLE", "name": "Payroll Operations (cross-trained)", "status": "res"}, {"lens": "PROCESS", "name": "Time & Attendance Capture", "status": "atrisk"}, {"lens": "PROCESS", "name": "Off-Cycle / Manual Pay Run", "status": "na"}, {"lens": "TECHNOLOGY", "name": "CoreERP Finance & HR", "status": "crit"}, {"lens": "TECHNOLOGY", "name": "OneID SSO & MFA", "status": "atrisk"}, {"lens": "FACILITIES", "name": "N/A — no facility dependency", "status": "na"}, {"lens": "THIRD PARTIES", "name": "Reliant Staffing Group", "status": "atrisk"}]}, "Crisis Communications & Media Relations": {"rto": "RTO  < 4 Hours", "pillar": "Back Office / Supply Chain", "deps": [{"lens": "PEOPLE", "name": "Communications Duty Officer", "status": "atrisk"}, {"lens": "PEOPLE", "name": "Executive Spokesperson", "status": "res"}, {"lens": "PROCESS", "name": "Holding Statement Library", "status": "res"}, {"lens": "PROCESS", "name": "Approval Chain Under Time Pressure", "status": "na"}, {"lens": "TECHNOLOGY", "name": "ReachAll Mass Notification", "status": "crit"}, {"lens": "TECHNOLOGY", "name": "CareLink Patient Portal", "status": "atrisk"}, {"lens": "FACILITIES", "name": "Media Briefing Space", "status": "na"}, {"lens": "THIRD PARTIES", "name": "MetroNet Communications", "status": "atrisk"}]}};
+const DEFAULT_CBS = "Inpatient Nursing Units";
+const SVGNS="http://www.w3.org/2000/svg";
+const TECH="TECHNOLOGY"; const RIGHT=["THIRD PARTIES","PEOPLE","PROCESS","FACILITIES"];
+const LENSES=["TECHNOLOGY","THIRD PARTIES","PEOPLE","PROCESS","FACILITIES"];
+const CYCLE=["crit","atrisk","res","na"];
+const COLOR={crit:"#E0301E",atrisk:"#E8902A",res:"#2DB757",na:"#BFC4CC"};
+const SLABEL={crit:"Critical gap",atrisk:"At risk",res:"Resilient",na:"Not assessed"};
+const LEG=[["Critical gap \u2014 no viable workaround","crit"],
+           ["At risk \u2014 workaround unproven / manual","atrisk"],
+           ["Resilient \u2014 documented & tested","res"]];
+const SUN_R=1.0,RING=2.80,CHIP_R=1.66,OFF=0.30;
+const VB_W=1180,VB_H=940,CX=545,CY=398,S=80;
+const dx=(r,d)=>CX+r*Math.cos(d*Math.PI/180)*S;
+const dy=(r,d)=>CY-r*Math.sin(d*Math.PI/180)*S;
+let _seq=0; function uid(){return "d"+(++_seq)+Math.random().toString(36).slice(2,6);}
+let state=null, selId=null, curName=DEFAULT_CBS;
+
+function loadCBS(name){
+  const src=ALL_CBS[name]; curName=name;
+  state={cbs:name, rto:src.rto||"", pillar:src.pillar||"",
+         deps:src.deps.map(d=>({id:uid(),lens:d.lens,name:d.name,status:d.status}))};
+  selId=null; syncHeader(); render(); renderEditor();
+}
+function dotR(){ const n=state.deps.length; return n<=20?0.140:(n<=30?0.126:0.112); }
+function lblFS(){ const n=state.deps.length; return n<=20?17:(n<=30?15.5:14); }
+
+function layout(deps){
+  const byLens={}; LENSES.forEach(l=>byLens[l]=[]);
+  deps.forEach(d=>{ if(byLens[d.lens]) byLens[d.lens].push(d); });
+  const total=deps.length||1; const span={}; LENSES.forEach(l=>span[l]=byLens[l].length/total*360);
+  const lay={}; const ts=span[TECH]; lay[TECH]=[180-ts/2,180+ts/2]; let cur=180+ts/2;
+  RIGHT.forEach(l=>{ lay[l]=[cur,cur+span[l]]; cur+=span[l]; });
+  const pos=[]; LENSES.forEach(l=>{ const a=byLens[l],[a0,a1]=lay[l],N=a.length,sp=a1-a0;
+    a.forEach((d,i)=>pos.push(Object.assign({},d,{ang:a0+sp*(i+0.5)/N}))); });
+  return {lay,pos,byLens};
+}
+function anchor(d){ d=((d%360)+360)%360;
+  if(d<=20||d>=340) return ["start","0.32em"];
+  if(d<88) return ["start","-0.05em"];
+  if(d<=92) return ["middle","-0.3em"];
+  if(d<160) return ["end","-0.05em"];
+  if(d<=200) return ["end","0.32em"];
+  if(d<268) return ["end","0.78em"];
+  if(d<=272) return ["middle","0.95em"];
+  return ["start","0.78em"]; }
+function el(t,a,p){ const e=document.createElementNS(SVGNS,t); for(const k in a)e.setAttribute(k,a[k]); if(p)p.appendChild(e); return e; }
+
+function render(){
+  const {lay,pos,byLens}=layout(state.deps);
+  const svg=el("svg",{viewBox:"0 0 "+VB_W+" "+VB_H,id:"map"});
+  const defs=el("defs",{},svg);
+  const g=el("radialGradient",{id:"sun",cx:"42%",cy:"38%",r:"68%"},defs);
+  el("stop",{offset:"0%","stop-color":"#1F8F8D"},g); el("stop",{offset:"100%","stop-color":"#0F3E3D"},g);
+  const f=el("filter",{id:"sh",x:"-40%",y:"-40%",width:"180%",height:"180%"},defs);
+  el("feDropShadow",{dx:"1",dy:"2",stdDeviation:"1.4","flood-color":"#333","flood-opacity":"0.20"},f);
+  el("rect",{x:0,y:0,width:VB_W,height:VB_H,fill:"#fff"},svg);
+  el("circle",{cx:CX,cy:CY,r:RING*S,fill:"none",stroke:"#D5D8DE","stroke-width":1.2},svg);
+  const bset=new Set();
+  LENSES.forEach(l=>{ if(byLens[l].length){const[a,b]=lay[l]; bset.add(((a%360)+360)%360); bset.add(((b%360)+360)%360);} });
+  bset.forEach(d=>el("line",{x1:dx(SUN_R+0.16,d),y1:dy(SUN_R+0.16,d),x2:dx(RING+0.2,d),y2:dy(RING+0.2,d),stroke:"#D5D8DE","stroke-width":1.1,opacity:0.9},svg));
+  const R=dotR()*S, FS=lblFS();
+  pos.forEach(p=>{
+    const x=dx(RING,p.ang),y=dy(RING,p.ang),ux=Math.cos(p.ang*Math.PI/180),uy=Math.sin(p.ang*Math.PI/180);
+    const[an,ddy]=anchor(p.ang);
+    const t=el("text",{x:x+ux*OFF*S,y:y-uy*OFF*S,"text-anchor":an,dy:ddy,"font-size":FS,class:"lbl"+(p.id===selId?" sel":"")},svg); t.textContent=p.name;
+    const c=el("circle",{cx:x,cy:y,r:R,fill:COLOR[p.status],stroke:"#fff","stroke-width":1.6,filter:"url(#sh)",class:"dot"+(p.id===selId?" sel":"")},svg);
+    c.addEventListener("click",()=>onDot(p.id));
+  });
+  LENSES.forEach(l=>{ if(!byLens[l].length)return; const[a0,a1]=lay[l];
+    const t=el("text",{x:dx(CHIP_R,(a0+a1)/2),y:dy(CHIP_R,(a0+a1)/2),"text-anchor":"middle",dy:"0.32em","font-size":18,class:"chip"},svg); t.textContent=l; });
+  el("circle",{cx:CX,cy:CY,r:(SUN_R+0.07)*S,fill:"#27ACAA",opacity:0.13},svg);
+  el("circle",{cx:CX,cy:CY,r:SUN_R*S,fill:"url(#sun)"},svg);
+  el("text",{x:CX,y:CY-0.42*S,"text-anchor":"middle",dy:"0.32em","font-size":11,"font-weight":"bold",fill:"#E8F6F5","letter-spacing":"0.06em"},svg).textContent="CRITICAL BUSINESS SERVICE";
+  const words=(state.cbs||"").split(" "); const lines=[]; let cur="";
+  words.forEach(w=>{ if(cur&&(cur+" "+w).length>14){lines.push(cur);cur=w;} else cur=(cur+" "+w).trim(); }); if(cur)lines.push(cur);
+  const nfs = lines.length<=2 && Math.max(...lines.map(l=>l.length))<=14 ? 25 : (lines.length<=3?20:17);
+  const nm=el("text",{x:CX,y:CY-(lines.length-1)*nfs*0.55+nfs*0.34,"text-anchor":"middle","font-size":nfs,"font-weight":"bold",fill:"#fff"},svg);
+  lines.forEach((ln,i)=>{ const ts=el("tspan",{x:CX,dy:i?(nfs*1.05):0},nm); ts.textContent=ln; });
+  if(state.rto) el("text",{x:CX,y:CY+0.58*S,"text-anchor":"middle",dy:"0.32em","font-size":14,fill:"#CFE9E8"},svg).textContent=state.rto;
+  drawLegend(svg);
+  const wrap=document.getElementById("svgWrap"); wrap.innerHTML=""; wrap.appendChild(svg);
+  positionLegend();
+}
+let LEGEND_ITEMS=[];
+function drawLegend(svg){
+  const counts={crit:0,atrisk:0,res:0,na:0}; state.deps.forEach(d=>{ if(counts[d.status]!=null)counts[d.status]++; });
+  const yTop=VB_H-150;
+  el("line",{x1:60,y1:yTop,x2:VB_W-60,y2:yTop,stroke:"#D5D8DE","stroke-width":1},svg);
+  el("text",{x:VB_W/2,y:yTop+34,"text-anchor":"middle","font-size":18,"font-weight":"bold",fill:"#15605F"},svg).textContent="WORKAROUND STATUS";
+  const yr=yTop+74;
+  LEGEND_ITEMS=[];
+  LEG.forEach(([lab,st])=>{
+    const circle=el("circle",{cx:0,cy:yr,r:11,fill:COLOR[st],stroke:"#fff","stroke-width":1.6},svg);
+    const label=el("text",{x:0,y:yr,dy:"0.34em","font-size":15.5,fill:"#2E2E38"},svg); label.textContent=lab;
+    const count=el("text",{x:0,y:yr,dy:"0.34em","font-size":16.5,"font-weight":"bold",fill:COLOR[st]},svg); count.textContent="("+counts[st]+")";
+    LEGEND_ITEMS.push({circle,label,count}); });
+  const total=state.deps.length;
+  const desc = counts.na>0 ? ("Color = workaround readiness.  Grey dots = not assessed in the workshop ("+counts.na+" of "+total+" dependencies).")
+                           : ("Color = readiness of a documented, tested fallback across all "+total+" dependencies of this critical business service.");
+  el("text",{x:VB_W/2,y:yTop+112,"text-anchor":"middle","font-size":13.5,fill:"#6B6F76"},svg).textContent=desc;
+}
+function positionLegend(){
+  if(!LEGEND_ITEMS.length) return;
+  const gap=52, dotGap=24, cgap=10;
+  const m=LEGEND_ITEMS.map(it=>{ let lw,cw;
+    try{ lw=it.label.getComputedTextLength(); cw=it.count.getComputedTextLength(); }
+    catch(e){ lw=it.label.textContent.length*7.0; cw=it.count.textContent.length*7.0; }
+    return {it,lw,cw,w:dotGap+lw+cgap+cw}; });
+  const total=m.reduce((s,o)=>s+o.w,0)+gap*(m.length-1);
+  let x=(VB_W-total)/2+9;
+  m.forEach(o=>{ o.it.circle.setAttribute("cx",x); o.it.label.setAttribute("x",x+dotGap); o.it.count.setAttribute("x",x+dotGap+o.lw+cgap); x+=o.w+gap; });
+}
+function onDot(id){ const d=state.deps.find(x=>x.id===id); if(!d)return;
+  d.status=CYCLE[(CYCLE.indexOf(d.status)+1)%CYCLE.length]; selId=id; render(); renderEditor(); }
+function renderEditor(){
+  const box=document.getElementById("editor"); const dep=state.deps.find(d=>d.id===selId);
+  if(!dep){ box.innerHTML='<div class="none">Click a dot on the map to select it.</div>'; return; }
+  box.innerHTML=""; const card=document.createElement("div"); card.className="card";
+  const ln=document.createElement("label"); ln.textContent="Name"; card.appendChild(ln);
+  const inp=document.createElement("input"); inp.type="text"; inp.value=dep.name;
+  inp.addEventListener("input",()=>{dep.name=inp.value; render();}); card.appendChild(inp);
+  const ll=document.createElement("label"); ll.textContent="Lens"; card.appendChild(ll);
+  const sl=document.createElement("select"); LENSES.forEach(l=>{const o=document.createElement("option");o.value=l;o.textContent=l[0]+l.slice(1).toLowerCase();if(l===dep.lens)o.selected=true;sl.appendChild(o);});
+  sl.addEventListener("change",()=>{dep.lens=sl.value; render();}); card.appendChild(sl);
+  const ls=document.createElement("label"); ls.textContent="Workaround status"; card.appendChild(ls);
+  const sb=document.createElement("div"); sb.className="statusbtns";
+  CYCLE.forEach(st=>{const b=document.createElement("button");b.className="sb-"+st;b.textContent=SLABEL[st];b.setAttribute("aria-pressed",st===dep.status?"true":"false");
+    b.addEventListener("click",()=>{dep.status=st; render(); renderEditor();}); sb.appendChild(b);});
+  card.appendChild(sb);
+  const del=document.createElement("button"); del.className="delbtn"; del.textContent="Delete dependency";
+  del.addEventListener("click",()=>{state.deps=state.deps.filter(d=>d.id!==selId); selId=null; render(); renderEditor();});
+  card.appendChild(del); box.appendChild(card);
+}
+function addDep(){ const lens=document.getElementById("addLens").value,name=document.getElementById("addName").value.trim(),status=document.getElementById("addStatus").value;
+  if(!name){document.getElementById("addName").focus();return;}
+  const d={id:uid(),lens,name,status}; state.deps.push(d); document.getElementById("addName").value=""; selId=d.id; render(); renderEditor(); }
+function fname(){ return "HealthCo_Demo_CBS_Solar_"+(state.cbs||"map").replace(/[^A-Za-z0-9]+/g,"_"); }
+function download(blob,name){ const u=URL.createObjectURL(blob),a=document.createElement("a"); a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u); }
+function rasterize(type,scale,cb){
+  const svg=document.getElementById("map"); const xml=new XMLSerializer().serializeToString(svg);
+  const url=URL.createObjectURL(new Blob([xml],{type:"image/svg+xml;charset=utf-8"})); const img=new Image();
+  img.onload=()=>{ const cv=document.createElement("canvas"); cv.width=VB_W*scale; cv.height=VB_H*scale;
+    const c=cv.getContext("2d"); c.fillStyle="#fff"; c.fillRect(0,0,cv.width,cv.height); c.drawImage(img,0,0,cv.width,cv.height); URL.revokeObjectURL(url);
+    cv.toBlob(b=>{ if(!b){alert("Export failed in this browser.");return;} b.arrayBuffer().then(ab=>cb(new Uint8Array(ab),cv.width,cv.height)); }, type==="jpeg"?"image/jpeg":"image/png", 0.92);
+  };
+  img.onerror=()=>{URL.revokeObjectURL(url);alert("Export failed in this browser.");}; img.src=url;
+}
+function exportPNG(){ rasterize("png",2.6,b=>download(new Blob([b],{type:"image/png"}),fname()+".png")); }
+function exportPDF(){ rasterize("jpeg",2.6,(b,w,h)=>download(new Blob([buildPDF(b,w,h,VB_W,VB_H)],{type:"application/pdf"}),fname()+".pdf")); }
+function exportPPTX(){ rasterize("png",2.6,(b,w,h)=>download(new Blob([buildPPTX(b,w,h)],{type:"application/vnd.openxmlformats-officedocument.presentationml.presentation"}),fname()+".pptx")); }
+function exportJSON(){ download(new Blob([JSON.stringify({cbs:state.cbs,rto:state.rto,pillar:state.pillar,deps:state.deps.map(d=>({lens:d.lens,name:d.name,status:d.status}))},null,2)],{type:"application/json"}), fname()+".json"); }
+function importJSON(file){ const r=new FileReader();
+  r.onload=()=>{ try{ const o=JSON.parse(r.result); if(!o||!Array.isArray(o.deps))throw 0;
+      o.deps.forEach(d=>{ if(!d.id)d.id=uid(); if(!COLOR[d.status])d.status="na"; if(LENSES.indexOf(d.lens)<0)d.lens="TECHNOLOGY"; });
+      state={cbs:o.cbs||"Imported CBS",rto:o.rto||"",pillar:o.pillar||"",deps:o.deps}; selId=null; syncHeader(); render(); renderEditor();
+    }catch(e){ alert("Could not read that JSON file."); } };
+  r.readAsText(file); }
+function syncHeader(){ document.getElementById("cbsName").value=state.cbs; document.getElementById("cbsRto").value=state.rto;
+  document.getElementById("cbsMeta").textContent=(state.pillar?state.pillar+" · ":"")+state.deps.length+" dependencies";
+  const pick=document.getElementById("cbsPick"); if(pick && ALL_CBS[state.cbs]) pick.value=state.cbs; }
+function init(){
+  const pick=document.getElementById("cbsPick");
+  Object.keys(ALL_CBS).forEach(n=>{const o=document.createElement("option");o.value=n;o.textContent=n;pick.appendChild(o);});
+  pick.addEventListener("change",()=>loadCBS(pick.value));
+  const sel=document.getElementById("addLens"); LENSES.forEach(l=>{const o=document.createElement("option");o.value=l;o.textContent=l[0]+l.slice(1).toLowerCase();sel.appendChild(o);});
+  document.getElementById("cbsName").addEventListener("input",e=>{state.cbs=e.target.value;render();});
+  document.getElementById("cbsRto").addEventListener("input",e=>{state.rto=e.target.value;render();});
+  document.getElementById("addBtn").addEventListener("click",addDep);
+  document.getElementById("addName").addEventListener("keydown",e=>{if(e.key==="Enter")addDep();});
+  document.getElementById("pngBtn").addEventListener("click",exportPNG);
+  document.getElementById("pdfBtn").addEventListener("click",exportPDF);
+  document.getElementById("pptxBtn").addEventListener("click",exportPPTX);
+  document.getElementById("jsonBtn").addEventListener("click",exportJSON);
+  document.getElementById("importBtn").addEventListener("click",()=>document.getElementById("fileInput").click());
+  document.getElementById("fileInput").addEventListener("change",e=>{if(e.target.files[0])importJSON(e.target.files[0]);e.target.value="";});
+  document.getElementById("resetBtn").addEventListener("click",()=>{ if(confirm("Reset "+curName+" to the master-file data?")) loadCBS(curName); });
+  loadCBS(DEFAULT_CBS);
+}
+init();
+</script>
+</body>
+</html>

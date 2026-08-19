@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<!--
+ENTERPRISE RESILIENCE WORKOUT (HEALTHCO DEMO) — TOOL 1 of 4: CBS PRIORITIZATION
+EY facilitation instrument. Build: 2026-06-12. Owner: Tim Stephens / EY.
+
+DECISION LOG — non-negotiables (do not change without Tim Stephens):
+1. LIGHT SUITE THEME (2026-07-27, per Tim / Partner feedback: dark theme hard to read).
+   REVERSES the 2026-06-12 "EY dark identity" decision. Suite standard = BO4's teal-on-white system
+   (Archivo/Source Serif 4 via Google Fonts, system-ui fallback offline). EY marks retained; tools remain EY-owned.
+0. GENERIC DEMO BUILD (2026-07-27): all client data stripped and replaced with the fictional
+   "HealthCo" dataset for cross-client demonstration. No real client names, systems, vendors, or tiers remain.
+2. 4 BREAKOUT GROUPS are the segments (per Tim 2026-06-12): G1 Clinical (green), G2 IT/Cyber (orange),
+   G3 Health Plan (pink), G4 Back Office/Supply Chain (purple). Colors consistent across all 4 tools.
+3. In client use, Service->Group mapping derives from the client's inventory (functional areas), not hand-tagging.
+   Demo build ships a fictional inventory in the same shape.
+4. RTO is never a scored/input criterion. Tiers are seeded as a starting hypothesis only.
+5. GLOSSARY LOCKED end-to-end: 5 lenses = People / Process / Technology / Facilities / Third Parties.
+   "Vendor" retired (use Third Parties). Identity/access + clinical devices fold into Technology. CBS / Tier / Readiness fixed.
+6. Reset clears the board but KEEPS the log; writes "Process reset selected" then resumes recording. (Tim req #4)
+7. Every tool: AI-ingestible decision log export, add+delete with dropdowns, group presentation filter. (Tim reqs #1-3,5)
+8. Single facilitator, single machine. localStorage autosave on EY hardware. Fresh start: ?fresh=1. No runtime internet deps.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EY · Enterprise Resilience Workout — CBS Prioritization (Demo)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap');
+  :root{
+    --accent:#00708c; --accent-dk:#004c5f; --accent-lt:#e4f1f4;
+    --bg:#f2f5f6; --bg2:#ffffff; --panel:#ffffff; --panel2:#f2f6f7;
+    --ink:#1c2b30; --muted:#5d7077; --line:#d4dde0; --line2:#b9c8cc;
+    --g1:#3a8d3f; --g1d:#2c6b30; --g2:#c77d2e; --g2d:#9c6224;
+    --g3:#a8568f; --g3d:#7a3f6d; --g4:#a96fd6; --g4d:#7e52a0;
+    --t1:#c0392b; --t2:#e67e22; --t3:#d4a017; --t4:#2e8b8b; --t5:#5b7c99;
+    --warn:#b9770e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Archivo','Segoe UI',system-ui,-apple-system,sans-serif;color:var(--ink);background:var(--bg);line-height:1.4;-webkit-font-smoothing:antialiased}
+
+  header{background:linear-gradient(120deg,var(--accent-dk),var(--accent));color:#fff;padding:18px 30px 16px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 12px rgba(0,40,52,.22)}
+  .htitle h1{font-size:19px;font-weight:800;letter-spacing:-.3px;color:#fff}
+  .htitle .sub{font-family:'Source Serif 4',Georgia,serif;font-size:12.5px;color:rgba(255,255,255,.85);margin-top:3px}
+  .hstep{margin-left:auto;font-size:10.5px;color:rgba(255,255,255,.75);text-align:right;line-height:1.6}
+  .hstep b{color:#fff;font-weight:800}
+  .hver{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;letter-spacing:.4px;color:#fff;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);border-radius:4px;padding:2px 8px}
+  .demobadge{display:inline-block;margin-top:6px;margin-left:8px;font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#fff;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);border-radius:4px;padding:2px 8px;vertical-align:middle}
+
+  .toolbar{display:flex;flex-wrap:wrap;gap:9px 14px;align-items:center;padding:12px 30px;background:var(--bg2);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30}
+  .tb-group{display:flex;align-items:center;gap:7px}
+  .tb-group label{color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;font-size:10px}
+  select,button.tb{font-family:inherit;font-size:12px;padding:6px 11px;border:1px solid var(--line2);border-radius:6px;background:var(--panel);color:var(--ink);cursor:pointer;transition:all .12s}
+  select:hover,button.tb:hover{border-color:var(--accent)}
+  button.tb.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+  button.tb.primary:hover{background:var(--accent-dk);border-color:var(--accent-dk)}
+  button.tb:disabled{opacity:.4;cursor:not-allowed}
+  button.tb:disabled:hover{border-color:var(--line2)}
+  .counter{font-size:10.5px;color:var(--ink);background:var(--panel2);padding:5px 10px;border-radius:6px;font-weight:600;border:1px solid var(--line)}
+  #logBtn.unsaved{border-color:var(--warn);position:relative}
+  #logBtn.unsaved::after{content:'';position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:var(--warn);animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  .legendbar{display:flex;gap:16px;flex-wrap:wrap;align-items:center;padding:8px 30px;background:var(--bg);border-bottom:1px solid var(--line);font-size:11px}
+  .lg{display:flex;align-items:center;gap:6px;color:var(--muted)}
+  .lgswatch{width:12px;height:12px;border-radius:3px}
+  .lgnote{margin-left:auto;color:var(--muted);font-size:10.5px;font-style:italic}
+
+  .wrap{padding:18px 30px 70px;overflow-x:auto}
+  .matrix{display:grid;grid-template-columns:150px repeat(5,minmax(175px,1fr));gap:8px;min-width:1080px}
+  .corner{display:flex;align-items:flex-end;padding:8px;font-size:10px;color:var(--muted);font-weight:600;line-height:1.3}
+  .colhead{padding:10px 11px;border-radius:8px 8px 0 0;text-align:center;position:relative;color:#fff;font-weight:700}
+  .colhead .ct{font-weight:800;font-size:13.5px}
+  .colhead .cd{font-size:10px;opacity:.92;font-weight:500;margin-top:2px}
+  .colhead.t1{background:var(--t1)}.colhead.t2{background:var(--t2)}.colhead.t3{background:var(--t3)}.colhead.t4{background:var(--t4)}.colhead.t5{background:var(--t5)}
+  .hedit{position:absolute;top:4px;right:5px;border:none;background:rgba(0,0,0,.25);color:#fff;border-radius:4px;font-size:10px;cursor:pointer;opacity:0;padding:2px 5px;line-height:1;transition:opacity .15s}
+  .colhead:hover .hedit,.rowhead:hover .hedit{opacity:.85}
+  body.present .hedit{display:none}
+
+  .rowhead{display:flex;flex-direction:column;justify-content:center;padding:11px 11px;border-radius:8px 0 0 8px;color:#fff;font-weight:700;font-size:12.5px;position:sticky;left:0;z-index:5;min-height:60px}
+  .rowhead .rc{font-size:9.5px;font-weight:500;opacity:.88;margin-top:3px}
+  .rowhead.G1{background:linear-gradient(135deg,var(--g1d),var(--g1))}
+  .rowhead.G2{background:linear-gradient(135deg,var(--g2d),var(--g2))}
+  .rowhead.G3{background:linear-gradient(135deg,var(--g3d),var(--g3))}
+  .rowhead.G4{background:linear-gradient(135deg,var(--g4d),var(--g4))}
+
+  .cell{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px;min-height:60px;display:flex;flex-direction:column;gap:5px;transition:background .15s,box-shadow .15s}
+  .cell.drop-hot{background:var(--panel2);box-shadow:inset 0 0 0 2px var(--accent)}
+
+  .chip{font-size:11px;padding:6px 8px;border-radius:6px;background:#fff;border:1px solid var(--line);border-left:4px solid var(--muted);cursor:grab;user-select:none;line-height:1.25;transition:transform .1s,box-shadow .1s;position:relative}
+  .chip:hover{box-shadow:0 2px 8px rgba(28,43,48,.12);transform:translateY(-1px)}
+  .chip:active{cursor:grabbing}
+  .chip.dragging{opacity:.4}
+  .chip.moved{box-shadow:0 0 0 2px var(--accent)}
+  .chip .movedot{position:absolute;top:4px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--accent);display:none}
+  .chip.moved .movedot{display:block}
+  .chip.dimmed{opacity:.22;filter:saturate(.3)}
+  .chip.G1{border-left-color:var(--g1)}.chip.G2{border-left-color:var(--g2)}.chip.G3{border-left-color:var(--g3)}.chip.G4{border-left-color:var(--g4)}
+  .chip.custom{border-style:dashed;border-width:1.5px}
+  .chipname{display:block;padding-right:12px}
+  .chiprow{display:flex;align-items:center;gap:4px;margin-top:5px;flex-wrap:wrap}
+  .noteflag{font-size:9px;color:var(--accent);cursor:help;margin-left:1px}
+  .custombadge{font-size:7.5px;font-weight:700;color:var(--accent);border:1px solid var(--accent-dk);border-radius:3px;padding:1px 4px}
+  .delbtn{margin-left:auto;border:none;background:none;color:var(--muted);cursor:pointer;font-size:13px;line-height:1;opacity:0;padding:0 2px;transition:opacity .12s,color .12s}
+  .chip:hover .delbtn{opacity:.7}
+  .delbtn:hover{color:var(--t1);opacity:1}
+  body.present .delbtn{display:none}
+
+  footer{padding:14px 30px;border-top:1px solid var(--line);font-size:10.5px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;background:var(--bg2)}
+  footer b{color:var(--muted)}
+
+  .logdrawer{position:fixed;top:0;right:-440px;width:430px;height:100vh;background:var(--bg2);border-left:1px solid var(--line);box-shadow:-8px 0 30px rgba(20,50,60,.18);z-index:60;display:flex;flex-direction:column;transition:right .28s cubic-bezier(.4,0,.2,1)}
+  .logdrawer.open{right:0}
+  .loghead{padding:18px 20px 14px;border-bottom:1px solid var(--line);position:relative}
+  .loghead strong{font-size:15px;display:block;color:var(--accent)}
+  .logsub{font-size:11px;color:var(--muted);display:block;margin-top:3px;max-width:330px}
+  .logclose{position:absolute;top:16px;right:16px;border:none;background:none;font-size:17px;cursor:pointer;color:var(--muted)}
+  .logbody{flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:9px}
+  .logempty{font-size:12px;color:var(--muted);font-style:italic;text-align:center;margin-top:30px;line-height:1.5}
+  .logentry{border:1px solid var(--line);border-left:4px solid var(--accent-dk);border-radius:8px;padding:9px 11px;font-size:12px;line-height:1.4;background:var(--panel);animation:slidein .25s ease}
+  .logentry.revert{border-left-color:var(--muted);opacity:.85}
+  .logentry.reset{border-left-color:var(--t1);background:var(--panel2)}
+  .logentry.add{border-left-color:var(--g1)}
+  .logentry.note{border-left-color:var(--accent-dk)}
+  .logentry.del{border-left-color:var(--t1)}
+  @keyframes slidein{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+  .le-svc{font-weight:700}
+  .le-move{color:var(--muted);margin-top:2px}
+  .le-arrow{font-weight:700;color:var(--ink)}
+  .le-time{font-size:9.5px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.4px}
+  .logmark{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--accent);text-align:center;padding:6px 0;border-top:2px solid var(--line);border-bottom:2px solid var(--line);margin:3px 0;background:var(--panel)}
+  .logfoot{padding:13px 18px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:9px}
+  .logfoot input{font-family:inherit;font-size:12px;padding:7px 10px;border:1px solid var(--line2);border-radius:7px;background:var(--panel);color:var(--ink)}
+  .logfoot .tb{width:100%}
+
+  body.present .toolbar,body.present .legendbar{display:none}
+  body.present header{padding:12px 30px}
+  body.present .chip{font-size:12.5px;padding:8px 10px}
+  body.present footer{display:none}
+  .exitpresent{display:none;position:fixed;bottom:18px;right:18px;z-index:70;background:var(--accent);color:#fff;border:none;padding:10px 16px;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(20,50,60,.25)}
+  body.present .exitpresent{display:block}
+
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(12,42,52,.45);z-index:80;align-items:center;justify-content:center}
+  .modal-bg.open{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line2);border-radius:12px;padding:22px 24px;width:390px;max-width:92vw;box-shadow:0 18px 50px rgba(20,50,60,.22);display:flex;flex-direction:column;gap:7px}
+  .modal strong{font-size:15px;color:var(--accent)}
+  .modal-sub{font-size:11px;color:var(--muted);margin-bottom:6px;line-height:1.4}
+  .modal label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-top:4px}
+  .modal input,.modal select{font-family:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line2);border-radius:7px;background:var(--bg2);color:var(--ink)}
+  .modal-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:12px}
+  .notesmodal{width:460px}
+  .svcdesc{font-size:12px;color:var(--ink);background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--muted);border-radius:6px;padding:8px 11px;margin-bottom:10px;line-height:1.45;font-style:italic}
+  .notesmodal textarea{font-family:inherit;font-size:13px;padding:9px 11px;border:1px solid var(--line2);border-radius:8px;background:var(--bg2);color:var(--ink);resize:vertical;line-height:1.45}
+
+  .restorebar{display:none;background:var(--accent-lt);border-bottom:1px solid var(--accent);color:var(--accent-dk);font-size:12px;padding:8px 30px}
+  .restorebar.show{display:block}
+  .restorebar button{margin-left:10px;font-size:11px;border:1px solid var(--accent-dk);background:var(--panel);color:var(--ink);border-radius:6px;padding:3px 9px;cursor:pointer;font-family:inherit}
+  .warnbar{display:none;background:#fbe9e7;border-bottom:1px solid var(--t1);color:#7a2c22;font-size:12px;padding:8px 30px}
+  .warnbar.show{display:block}
+  .warnbar button{margin-left:10px;font-size:11px;border:1px solid var(--t1);background:var(--panel);color:var(--ink);border-radius:6px;padding:3px 9px;cursor:pointer;font-family:inherit}
+</style>
+</head>
+<body>
+<header>
+  <div class="htitle">
+    <h1>Critical Business Services — Prioritization</h1>
+    <div class="sub">HealthCo (fictional client) · Enterprise Resilience Workout · Day 1 · Breakout 1</div>
+    <div class="hver">v1.4 demo &middot; 2026-07-27</div><span class="demobadge">Demo dataset · fictional client</span>
+  </div>
+  <div class="hstep">STEP <b>1</b> OF 4<br>Prioritize → Map → Risk → Readiness</div>
+</header>
+
+<div class="restorebar" id="restoreBar">
+  ↻ <strong>Previous session restored</strong> — <span id="restoreInfo"></span>.
+  <button id="restoreDismiss">OK</button>
+</div>
+<div class="warnbar" id="storageWarn">
+  ⚠ <strong>Not saving locally.</strong> Browser storage is unavailable or full — your work is held in memory only. Export now and avoid refreshing.
+  <button id="storageWarnExport">Export now</button>
+</div>
+
+<div class="toolbar">
+  <div class="tb-group">
+    <label>Focus group</label>
+    <select id="grpFilter">
+      <option value="all">All groups</option>
+      <option value="G1">Clinical</option>
+      <option value="G2">IT / Cyber</option>
+      <option value="G3">Health Plan</option>
+      <option value="G4">Back Office / Supply Chain</option>
+    </select>
+  </div>
+  <button class="tb primary" id="addBtn">+ Add service</button>
+  <button class="tb" id="addGroupBtn">+ Add group</button>
+  <button class="tb" id="resetBtn">Reset board</button>
+  <button class="tb" id="undoBtn" disabled>↩ Undo</button>
+  <button class="tb" id="snapBtn">⚑ Mark round</button>
+  <button class="tb" id="presentBtn">⛶ Present</button>
+  <button class="tb" id="logBtn">Activity log &amp; export <span id="logCount">(0)</span></button>
+  <span class="counter" id="moveCounter">0 moves</span>
+</div>
+
+<div class="legendbar" id="legendbar"></div>
+
+<div class="logdrawer" id="logDrawer">
+  <div class="loghead">
+    <strong>Decision Log</strong>
+    <span class="logsub">Every reprioritization, add, delete, and reset is captured for AI synthesis into the master workbook.</span>
+    <button class="logclose" id="logClose">✕</button>
+  </div>
+  <div class="logbody" id="logBody">
+    <div class="logempty">No decisions yet. Drag a service to a new tier and it is recorded with a timestamp.</div>
+  </div>
+  <div class="logfoot">
+    <input id="facilitator" placeholder="Facilitator / session name (optional)" />
+    <button class="tb" id="exportCsv">Download decision log (CSV)</button>
+    <button class="tb" id="exportJson">Download structured data (JSON)</button>
+    <button class="tb" id="exportMd">Download readout (.md)</button>
+  </div>
+</div>
+
+<div class="wrap"><div class="matrix" id="matrix"></div></div>
+
+<footer>
+  <span>Drag a service to re-tier it · click a service to add notes · click ✎ on any label to rename. <b>Reset</b> clears placements but keeps the log.</span>
+  <span>EY · Enterprise Resilience Workout · Demonstration build — fictional data</span>
+</footer>
+
+<button class="exitpresent" id="exitPresent">⛶ Exit presentation</button>
+
+<div class="modal-bg" id="addModal">
+  <div class="modal">
+    <strong>Add a service raised in the room</strong>
+    <p class="modal-sub">Tagged "added in workshop" and recorded in the log. Appears in all exports.</p>
+    <label>Service name</label>
+    <input id="newName" placeholder="e.g. Dialysis services" maxlength="80"/>
+    <label>Breakout group</label>
+    <select id="newGrp">
+      <option value="G1">Clinical</option>
+      <option value="G2">IT / Cyber</option>
+      <option value="G3">Health Plan</option>
+      <option value="G4">Back Office / Supply Chain</option>
+    </select>
+    <label>Recovery tier (room's initial call)</label>
+    <select id="newTier">
+      <option value="t1">&lt; 4 Hours</option>
+      <option value="t2">4 – 24 Hours</option>
+      <option value="t3">1 – 3 Days</option>
+      <option value="t4">3 – 7 Days</option>
+      <option value="t5">&gt; 1 Week</option>
+    </select>
+    <div class="modal-actions">
+      <button class="tb" id="addCancel">Cancel</button>
+      <button class="tb primary" id="addConfirm">Add service</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="notesModal">
+  <div class="modal notesmodal">
+    <strong id="notesTitle">Service notes</strong>
+    <p class="modal-sub" id="notesMeta"></p>
+    <div class="svcdesc" id="notesDesc"></div>
+    <label>Facilitator notes — coverage, locations, equipment, caveats</label>
+    <textarea id="notesText" rows="6" placeholder="e.g. 15 of 30 locations have labs; 10 of the 15 run Equipment X; reference lab contract with LabCorp covers the rest."></textarea>
+    <div class="modal-actions">
+      <button class="tb" id="notesCancel">Close</button>
+      <button class="tb primary" id="notesSave">Save notes</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="labelModal">
+  <div class="modal">
+    <strong id="labelTitle">Edit label</strong>
+    <p class="modal-sub" id="labelSub"></p>
+    <label id="labelL1">Label</label>
+    <input id="labelName" maxlength="60"/>
+    <label id="labelL2">Byline / description</label>
+    <input id="labelDesc" maxlength="80"/>
+    <div class="modal-actions">
+      <button class="tb" id="labelCancel">Cancel</button>
+      <button class="tb primary" id="labelSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TIERS=[
+  {id:'t1',label:'< 4 Hours',desc:'Life / safety · immediate'},
+  {id:'t2',label:'4 – 24 Hours',desc:'Same-day clinical ops'},
+  {id:'t3',label:'1 – 3 Days',desc:'Near-term operations'},
+  {id:'t4',label:'3 – 7 Days',desc:'Elective / routine'},
+  {id:'t5',label:'> 1 Week',desc:'Strategic / deferrable'},
+];
+const GROUPS=[
+  {id:'G1',label:'Clinical',desc:'Clinical, Ambulatory, Acute, Post',color:'#3a8d3f',colorD:'#2c6b30'},
+  {id:'G2',label:'IT / Cyber',desc:'Technology & cyber operations',color:'#c77d2e',colorD:'#9c6224'},
+  {id:'G3',label:'Health Plan',desc:'Member & payer operations',color:'#a8568f',colorD:'#7a3f6d'},
+  {id:'G4',label:'Back Office / Supply Chain',desc:'Corporate, finance, supply',color:'#a96fd6',colorD:'#7e52a0'},
+];
+// Palette for groups added in-session (cycles if exhausted)
+const GROUP_PALETTE=[
+  {color:'#4a90a4',colorD:'#356d7d'},{color:'#b5783a',colorD:'#8a5a2b'},
+  {color:'#7d8c3a',colorD:'#5f6b2c'},{color:'#9a5a5a',colorD:'#744444'},
+  {color:'#5a6fa0',colorD:'#43547a'},{color:'#8a6fb0',colorD:'#6a5488'}
+];
+let groupCount=0;
+const SERVICES=[
+  {n:"Emergency Department & Trauma",g:"G1",t:"t1",fa:"Hospital",d:"Receiving, stabilizing, and treating emergent and trauma patients around the clock."},
+  {n:"ICU / Critical Care",g:"G1",t:"t1",fa:"Hospital",d:"Sustaining continuous monitoring and life support for the most critically ill patients."},
+  {n:"Labor & Delivery",g:"G1",t:"t1",fa:"Hospital",d:"Managing obstetric care, delivery, and immediate maternal-newborn stabilization."},
+  {n:"Operating Room (emergent cases)",g:"G1",t:"t1",fa:"Hospital",d:"Enabling unscheduled, time-critical surgical intervention with full perioperative support."},
+  {n:"Blood Bank & Transfusion",g:"G1",t:"t1",fa:"Hospital",d:"Maintaining safe blood product inventory, crossmatching, and transfusion support."},
+  {n:"Respiratory Therapy",g:"G1",t:"t1",fa:"Hospital",d:"Delivering ventilator management, oxygen therapy, and airway support."},
+  {n:"Acute Stroke Response",g:"G1",t:"t1",fa:"Hospital",d:"Providing rapid stroke assessment, intervention, and acute neurological care."},
+  {n:"Inpatient Nursing Units",g:"G1",t:"t2",fa:"Hospital",d:"Providing continuous bedside nursing care and monitoring for admitted patients."},
+  {n:"Clinical Laboratory",g:"G1",t:"t2",fa:"Hospital",d:"Performing and resulting diagnostic testing that informs clinical decisions."},
+  {n:"Inpatient Pharmacy",g:"G1",t:"t2",fa:"Hospital",d:"Dispensing, compounding, and managing medications for admitted patients."},
+  {n:"Diagnostic Imaging",g:"G1",t:"t2",fa:"Hospital",d:"Performing and interpreting imaging studies for inpatient and emergent care."},
+  {n:"Case Management & Discharge Planning",g:"G1",t:"t2",fa:"Hospital",d:"Coordinating care transitions and safe discharge across the continuum."},
+  {n:"Ambulatory Surgery Centers",g:"G1",t:"t3",fa:"Ambulatory",d:"Delivering same-day procedural and surgical care in outpatient settings."},
+  {n:"Virtual Care / Telehealth",g:"G1",t:"t3",fa:"Ambulatory",d:"Enabling remote clinical consultation and monitoring by video and phone."},
+  {n:"Infection Prevention & Control",g:"G1",t:"t3",fa:"Hospital",d:"Detecting and containing healthcare-associated infection risk enterprise-wide."},
+  {n:"Home Health Services",g:"G1",t:"t3",fa:"Post-Acute",d:"Delivering skilled clinical care to patients in the home setting."},
+  {n:"Elective Surgery",g:"G1",t:"t4",fa:"Hospital",d:"Managing planned, non-urgent surgical procedures and perioperative care."},
+  {n:"Behavioral Health (routine)",g:"G1",t:"t4",fa:"Ambulatory",d:"Delivering scheduled mental health and behavioral care services."},
+  {n:"Clinical Research Programs",g:"G1",t:"t5",fa:"Hospital",d:"Conducting clinical research operations, enrollment, and compliance."},
+  {n:"Enterprise Command Center",g:"G2",t:"t1",fa:"Corporate",d:"Monitoring and directing enterprise response during disruptions and incidents."},
+  {n:"EHR Platform Operations",g:"G2",t:"t1",fa:"Corporate",d:"Sustaining availability of the electronic health record and its interfaces."},
+  {n:"Network & Connectivity",g:"G2",t:"t1",fa:"Corporate",d:"Operating the wired, wireless, and wide-area networks every digital service rides on."},
+  {n:"Identity & Access Management",g:"G2",t:"t1",fa:"Corporate",d:"Running single sign-on, MFA, and directory services; without authentication, uptime is irrelevant."},
+  {n:"Data Center & Cloud Hosting",g:"G2",t:"t1",fa:"Corporate",d:"Providing the compute, storage, and hosting that underpin every clinical and business system."},
+  {n:"Clinical Communications & Paging",g:"G2",t:"t2",fa:"Corporate",d:"Operating secure messaging, paging, and nurse-call so clinicians can coordinate in real time."},
+  {n:"Cybersecurity Operations",g:"G2",t:"t2",fa:"Corporate",d:"Monitoring, detecting, and responding to security threats across the enterprise."},
+  {n:"IT Service Desk & End-User Computing",g:"G2",t:"t2",fa:"Corporate",d:"Supporting workstations, mobile devices, and break-fix before the next shift change."},
+  {n:"Data Backup & Recovery",g:"G2",t:"t2",fa:"Corporate",d:"Executing backups and restores that protect against data loss."},
+  {n:"Enterprise Applications (ERP / HCM)",g:"G2",t:"t3",fa:"Corporate",d:"Supporting the finance, HR, and supply chain platform behind corporate operations."},
+  {n:"IT Asset & Configuration Management",g:"G2",t:"t4",fa:"Corporate",d:"Maintaining the CMDB, licensing, and hardware inventory that recovery planning relies on."},
+  {n:"IT Architecture & Strategy",g:"G2",t:"t5",fa:"Corporate",d:"Managing technology roadmaps, standards, and architecture reviews."},
+  {n:"Emergent Care Authorization",g:"G3",t:"t1",fa:"Health Plan",d:"Providing immediate coverage determinations that enable emergent treatment."},
+  {n:"Urgent Pharmacy Prior Authorization",g:"G3",t:"t1",fa:"Health Plan",d:"Adjudicating time-sensitive medication coverage approvals for urgent therapies."},
+  {n:"Member Services (urgent inquiries)",g:"G3",t:"t2",fa:"Health Plan",d:"Responding to time-sensitive member questions on coverage and access."},
+  {n:"Utilization Management",g:"G3",t:"t2",fa:"Health Plan",d:"Reviewing medical necessity and managing appropriate use of services."},
+  {n:"Claims Intake & Initial Processing",g:"G3",t:"t3",fa:"Health Plan",d:"Receiving, validating, and initiating adjudication of submitted claims."},
+  {n:"Care Coordination (high-risk members)",g:"G3",t:"t3",fa:"Health Plan",d:"Coordinating care for members with complex, high-risk needs."},
+  {n:"Full Claims Adjudication",g:"G3",t:"t4",fa:"Health Plan",d:"Processing claims through complete determination, pricing, and payment."},
+  {n:"Appeals & Grievances",g:"G3",t:"t4",fa:"Health Plan",d:"Adjudicating member and provider appeals within regulatory timelines."},
+  {n:"Actuarial & Product Pricing",g:"G3",t:"t5",fa:"Health Plan",d:"Modeling risk and setting rates that keep plan products financially sound."},
+  {n:"Crisis Communications & Media Relations",g:"G4",t:"t1",fa:"Corporate",d:"Managing public information and media engagement during events."},
+  {n:"Facilities & Utilities Management",g:"G4",t:"t2",fa:"Corporate",d:"Keeping power, utilities, and environmental systems running across sites."},
+  {n:"Patient Access (registration & scheduling)",g:"G4",t:"t2",fa:"Corporate",d:"Managing registration, scheduling, and access to care across entry points."},
+  {n:"Clinical Supply Distribution",g:"G4",t:"t2",fa:"Corporate",d:"Receiving, storing, and distributing clinical supplies to points of care."},
+  {n:"Payroll & Benefits Administration",g:"G4",t:"t3",fa:"Corporate",d:"Administering compensation, benefits, and payroll continuity."},
+  {n:"Supply Chain Ordering & Replenishment",g:"G4",t:"t3",fa:"Corporate",d:"Ordering and replenishing enterprise inventory to prevent shortages."},
+  {n:"Finance Operations (AP / AR)",g:"G4",t:"t3",fa:"Corporate",d:"Processing payables and receivables to sustain financial operations."},
+  {n:"Regulatory & Compliance Reporting",g:"G4",t:"t4",fa:"Corporate",d:"Preparing and submitting required regulatory and compliance reporting."},
+  {n:"Credentialing & Privileging",g:"G4",t:"t4",fa:"Corporate",d:"Verifying provider qualifications and managing clinical privileges."},
+  {n:"Financial Close & Reporting",g:"G4",t:"t4",fa:"Corporate",d:"Executing periodic accounting close, consolidation, and reporting."},
+  {n:"Marketing & Communications",g:"G4",t:"t5",fa:"Corporate",d:"Managing brand, campaigns, and consumer communications."},
+  {n:"Strategy & Transformation Office",g:"G4",t:"t5",fa:"Corporate",d:"Developing enterprise strategy and governing the transformation portfolio."},
+];
+SERVICES.forEach((sv,i)=>{sv.id='svc'+i;sv.orig=sv.t;});
+
+// Display escaping ONLY (for innerHTML). Never use on export values — use clean() there.
+function esc(x){return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+// Export-side normalization: collapse whitespace, straighten smart quotes, kill non-breaking spaces.
+function norm(s){return String(s==null?'':s).trim().replace(/\s+/g,' ');}
+function clean(s){return norm(s).replace(/[\u201C\u201D]/g,'"').replace(/[\u2018\u2019]/g,"'").replace(/\u00A0/g,' ');}
+function escapeMD(s){return clean(s).replace(/\|/g,'\\|');}
+const grpLabel=id=>(GROUPS.find(g=>g.id===id)||{}).label||id;
+const tierLabel=id=>(TIERS.find(t=>t.id===id)||{}).label||id;
+
+const placement={}; SERVICES.forEach(sv=>placement[sv.id]=sv.t);
+const undoStack=[]; let unsavedSinceExport=false; let customCount=0;
+const activityLog=[];
+// Append to the activity log with an auto-incrementing sequence number (deterministic event order across sessions).
+function logEvent(ev){ev.seq=activityLog.length+1; if(!ev.ts) ev.ts=new Date(); activityLog.push(ev); return ev;}
+
+const STORE_KEY='erw-demo-bo1-v1';
+let SESSION_START=new Date();
+let SESSION_ID=null;
+function facilRaw(){const el=document.getElementById('facilitator');return el?el.value:'';}
+function makeSessionId(){return SESSION_START.toISOString().replace(/[:.]/g,'-')+'_'+(clean(facilRaw())||'unnamed').replace(/[^A-Za-z0-9_-]/g,'-');}
+function ensureSessionId(){ if(!SESSION_ID) SESSION_ID=makeSessionId(); return SESSION_ID; }
+function saveSession(){
+  try{
+    const custom=SERVICES.filter(s=>s.custom).map(s=>({id:s.id,n:s.n,g:s.g,t:s.t,orig:s.orig,fa:s.fa,custom:true}));
+    const deleted=SERVICES.filter(s=>s.deleted).map(s=>s.id);
+    const notes={}; SERVICES.forEach(s=>{if(s.note&&s.note.trim()) notes[s.id]=s.note;});
+    const tierLabels=TIERS.map(t=>({id:t.id,label:t.label,desc:t.desc}));
+    const grpLabels=GROUPS.map(g=>({id:g.id,label:g.label,desc:g.desc}));
+    const addedGroups=GROUPS.filter(g=>g.added).map(g=>({id:g.id,label:g.label,desc:g.desc,color:g.color,colorD:g.colorD,added:true}));
+    localStorage.setItem(STORE_KEY,JSON.stringify({
+      placement,custom,customCount,deleted,notes,tierLabels,grpLabels,addedGroups,groupCount,
+      sessionId:ensureSessionId(),sessionStart:SESSION_START.toISOString(),
+      log:activityLog.map(e=>({...e,ts:e.ts.toISOString()})),
+      facilitator:document.getElementById('facilitator').value,
+      unsaved:unsavedSinceExport,savedAt:new Date().toISOString()
+    }));
+  }catch(err){ const w=document.getElementById('storageWarn'); if(w) w.classList.add('show'); }
+}
+function loadSession(){
+  try{
+    const raw=localStorage.getItem(STORE_KEY); if(!raw) return false;
+    const s=JSON.parse(raw);
+    (s.custom||[]).forEach(c=>{ if(!SERVICES.some(x=>x.id===c.id)) SERVICES.push({...c}); });
+    customCount=s.customCount||0;
+    groupCount=s.groupCount||0;
+    (s.addedGroups||[]).forEach(ag=>{ if(!GROUPS.some(x=>x.id===ag.id)) GROUPS.push({...ag}); });
+    (s.deleted||[]).forEach(id=>{const sv=SERVICES.find(x=>x.id===id); if(sv) sv.deleted=true;});
+    Object.assign(placement,s.placement||{});
+    if(s.notes){Object.keys(s.notes).forEach(id=>{const sv=SERVICES.find(x=>x.id===id); if(sv) sv.note=s.notes[id];});}
+    (s.tierLabels||[]).forEach(tl=>{const t=TIERS.find(x=>x.id===tl.id); if(t){t.label=tl.label;t.desc=tl.desc;}});
+    (s.grpLabels||[]).forEach(gl=>{const g=GROUPS.find(x=>x.id===gl.id); if(g){g.label=gl.label;g.desc=gl.desc;}});
+    (s.log||[]).forEach((e,i)=>activityLog.push({...e,seq:(e.seq||i+1),ts:new Date(e.ts)}));
+    if(s.sessionStart){SESSION_START=new Date(s.sessionStart);}
+    if(s.sessionId){SESSION_ID=s.sessionId;}
+    if(s.facilitator) document.getElementById('facilitator').value=s.facilitator;
+    if(s.unsaved) unsavedSinceExport=true;
+    return {savedAt:s.savedAt,moves:(s.log||[]).filter(e=>e.type==='move').length};
+  }catch(err){return false;}
+}
+function wipeSession(){try{localStorage.removeItem(STORE_KEY);}catch(e){}}
+if(location.search.indexOf('fresh=1')!==-1) wipeSession();
+
+function markUnsaved(){unsavedSinceExport=true;document.getElementById('logBtn').classList.add('unsaved');saveSession();}
+function clearUnsaved(){unsavedSinceExport=false;document.getElementById('logBtn').classList.remove('unsaved');saveSession();}
+
+const legendbar=document.getElementById('legendbar');
+function buildLegend(){
+  legendbar.innerHTML='';
+  GROUPS.forEach(g=>{
+    const el=document.createElement('span');el.className='lg';
+    el.innerHTML='<span class="lgswatch" style="background:'+g.color+'"></span>'+esc(g.label);
+    legendbar.appendChild(el);
+  });
+  const note=document.createElement('span');note.className='lgnote';
+  note.textContent='Groups derive from the client service inventory · click a service to add notes · EY hypothesis for validation';
+  legendbar.appendChild(note);
+}
+
+const matrix=document.getElementById('matrix');
+function buildGrid(){
+  matrix.innerHTML='';
+  const corner=document.createElement('div');corner.className='corner';
+  corner.textContent='Recovery tier →  /  Group ↓';
+  matrix.appendChild(corner);
+  TIERS.forEach(t=>{
+    const h=document.createElement('div');h.className='colhead '+t.id;
+    h.innerHTML='<div class="ct">'+esc(t.label)+'</div><div class="cd">'+esc(t.desc)+'</div><button class="hedit" data-tier="'+t.id+'">✎</button>';
+    matrix.appendChild(h);
+  });
+  GROUPS.forEach(g=>{
+    const rh=document.createElement('div');rh.className='rowhead';
+    rh.style.background='linear-gradient(135deg,'+(g.colorD||g.color)+','+g.color+')';
+    rh.innerHTML=esc(g.label)+'<span class="rc" id="cnt-'+g.id+'"></span><button class="hedit" data-grp="'+g.id+'">✎</button>';
+    matrix.appendChild(rh);
+    TIERS.forEach(t=>{
+      const cell=document.createElement('div');cell.className='cell';
+      cell.dataset.tier=t.id;cell.dataset.grp=g.id;
+      attachDrop(cell);matrix.appendChild(cell);
+    });
+  });
+  renderChips();
+}
+
+function renderChips(){
+  matrix.querySelectorAll('.chip').forEach(c=>c.remove());
+  const counts={};
+  SERVICES.forEach(sv=>{
+    if(sv.deleted) return;
+    const tier=placement[sv.id]; const grp=sv.g;
+    counts[grp]=(counts[grp]||0)+1;
+    const cell=matrix.querySelector('.cell[data-tier="'+tier+'"][data-grp="'+grp+'"]');
+    if(!cell) return;
+    const chip=document.createElement('div');
+    chip.className='chip'+(placement[sv.id]!==sv.orig?' moved':'')+(sv.custom?' custom':'');
+    const gObj=GROUPS.find(x=>x.id===sv.g);
+    if(gObj) chip.style.borderLeftColor=gObj.color;
+    chip.draggable=true;chip.dataset.id=sv.id;
+    chip.innerHTML='<span class="movedot"></span><span class="chipname">'+esc(sv.n)+'</span>'+
+      '<div class="chiprow">'+
+      (sv.custom?'<span class="custombadge">ADDED</span>':'')+
+      ((sv.note&&sv.note.trim())?'<span class="noteflag" title="Has facilitator notes">✎</span>':'')+
+      '<button class="delbtn" data-del="'+sv.id+'" title="Delete service">×</button></div>';
+    attachDrag(chip);
+    cell.appendChild(chip);
+  });
+  GROUPS.forEach(g=>{const el=document.getElementById('cnt-'+g.id); if(el) el.textContent=(counts[g.id]||0)+' services';});
+  const moved=SERVICES.filter(sv=>!sv.deleted&&placement[sv.id]!==sv.orig).length;
+  document.getElementById('moveCounter').textContent=moved+(moved===1?' move':' moves');
+  applyFilter();
+}
+
+let dragId=null;
+function attachDrag(chip){
+  chip.addEventListener('dragstart',e=>{dragId=chip.dataset.id;chip.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+  chip.addEventListener('dragend',()=>{chip.classList.remove('dragging');dragId=null;});
+}
+function attachDrop(cell){
+  cell.addEventListener('dragover',e=>{e.preventDefault();cell.classList.add('drop-hot');});
+  cell.addEventListener('dragleave',()=>cell.classList.remove('drop-hot'));
+  cell.addEventListener('drop',e=>{
+    e.preventDefault();cell.classList.remove('drop-hot');
+    if(!dragId) return;
+    const sv=SERVICES.find(s=>s.id===dragId); if(!sv) return;
+    const newTier=cell.dataset.tier; const oldTier=placement[sv.id];
+    if(newTier===oldTier) return;
+    undoStack.push({id:sv.id,fromTier:oldTier});
+    placement[sv.id]=newTier;
+    logEvent({type:'move',ts:new Date(),service:sv.n,group:grpLabel(sv.g),
+      from:tierLabel(oldTier),to:tierLabel(newTier),revert:(newTier===sv.orig)});
+    markUnsaved();updateUndoBtn();renderLog();renderChips();
+  });
+}
+
+function applyFilter(){
+  const f=document.getElementById('grpFilter').value;
+  matrix.querySelectorAll('.chip').forEach(ch=>{
+    const sv=SERVICES.find(s=>s.id===ch.dataset.id);
+    ch.classList.toggle('dimmed', f!=='all' && sv.g!==f);
+  });
+  matrix.querySelectorAll('.rowhead').forEach((rh,i)=>{
+    rh.style.opacity=(f!=='all' && GROUPS[i].id!==f)?0.4:1;
+  });
+}
+document.getElementById('grpFilter').addEventListener('change',applyFilter);
+
+function rebuildGroupDropdowns(){
+  const filt=document.getElementById('grpFilter');
+  const cur=filt.value;
+  filt.innerHTML='<option value="all">All groups</option>'+
+    GROUPS.map(g=>'<option value="'+g.id+'">'+esc(g.label)+'</option>').join('');
+  if(GROUPS.some(g=>g.id===cur)||cur==='all') filt.value=cur;
+  const addSel=document.getElementById('newGrp');
+  if(addSel){const a=addSel.value;
+    addSel.innerHTML=GROUPS.map(g=>'<option value="'+g.id+'">'+esc(g.label)+'</option>').join('');
+    if(GROUPS.some(g=>g.id===a)) addSel.value=a;}
+}
+
+document.getElementById('addGroupBtn').addEventListener('click',()=>{
+  groupCount++;
+  const pal=GROUP_PALETTE[(groupCount-1)%GROUP_PALETTE.length];
+  const id='Gx'+groupCount;
+  const g={id:id,label:'New group '+groupCount,desc:'Added in workshop',color:pal.color,colorD:pal.colorD,added:true};
+  GROUPS.push(g);
+  logEvent({type:'mark',ts:new Date(),label:'Group added: "'+g.label+'"'});
+  markUnsaved();rebuildGroupDropdowns();buildLegend();buildGrid();renderLog();
+  openLabelModal('group',id);
+});
+
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  const moved=SERVICES.filter(sv=>!sv.deleted&&placement[sv.id]!==sv.orig);
+  if(!moved.length && !SERVICES.some(s=>s.custom||s.deleted)){return;}
+  if(!confirm('Reset the board to the EY starting hypothesis?\n\nPlacements clear, but the decision log is KEPT. A "Process reset selected" entry is recorded and new changes continue from there.')) return;
+  SERVICES.forEach(sv=>{placement[sv.id]=sv.orig;});
+  undoStack.length=0;
+  logEvent({type:'reset',ts:new Date()});
+  markUnsaved();updateUndoBtn();renderLog();renderChips();
+});
+
+document.getElementById('undoBtn').addEventListener('click',()=>{
+  const last=undoStack.pop(); if(!last) return;
+  const sv=SERVICES.find(s=>s.id===last.id); const cur=placement[last.id];
+  placement[last.id]=last.fromTier;
+  logEvent({type:'move',ts:new Date(),service:sv.n,group:grpLabel(sv.g),
+    from:tierLabel(cur),to:tierLabel(last.fromTier),revert:(last.fromTier===sv.orig)});
+  markUnsaved();updateUndoBtn();renderLog();renderChips();
+});
+function updateUndoBtn(){document.getElementById('undoBtn').disabled=undoStack.length===0;}
+
+document.getElementById('snapBtn').addEventListener('click',()=>{
+  const label=prompt('Label this round / checkpoint (e.g. "End of Clinical breakout"):','');
+  if(label===null||!label.trim()) return;
+  logEvent({type:'mark',ts:new Date(),label:label.trim()});
+  markUnsaved();renderLog();
+});
+
+const presentBtn=document.getElementById('presentBtn');
+presentBtn.addEventListener('click',()=>{document.body.classList.add('present');if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{});});
+document.getElementById('exitPresent').addEventListener('click',()=>{document.body.classList.remove('present');if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(()=>{});});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.body.classList.remove('present');document.getElementById('addModal').classList.remove('open');document.getElementById('notesModal').classList.remove('open');document.getElementById('labelModal').classList.remove('open');}});
+
+const drawer=document.getElementById('logDrawer');
+document.getElementById('logBtn').addEventListener('click',()=>drawer.classList.toggle('open'));
+document.getElementById('logClose').addEventListener('click',()=>drawer.classList.remove('open'));
+
+function renderLog(){
+  const body=document.getElementById('logBody');
+  document.getElementById('logCount').textContent='('+activityLog.filter(e=>e.type==='move').length+')';
+  if(!activityLog.length){body.innerHTML='<div class="logempty">No decisions yet. Drag a service to a new tier and it is recorded with a timestamp.</div>';return;}
+  body.innerHTML='';
+  activityLog.slice().reverse().forEach(e=>{
+    if(e.type==='mark'){const d=document.createElement('div');d.className='logmark';d.textContent='⚑ '+esc(e.label);body.appendChild(d);return;}
+    const d=document.createElement('div');
+    if(e.type==='reset'){d.className='logentry reset';d.innerHTML='<div class="le-svc">↻ Process reset selected</div><div class="le-move">Board cleared to EY starting hypothesis · recording continued</div><div class="le-time">'+e.ts.toLocaleTimeString()+'</div>';}
+    else if(e.type==='add'){d.className='logentry add';d.innerHTML='<div class="le-svc">+ '+esc(e.service)+'</div><div class="le-move">added in workshop · '+esc(e.group)+' · '+esc(e.tier)+'</div><div class="le-time">'+e.ts.toLocaleTimeString()+'</div>';}
+    else if(e.type==='del'){d.className='logentry del';d.innerHTML='<div class="le-svc">× '+esc(e.service)+'</div><div class="le-move">removed from board · '+esc(e.group)+'</div><div class="le-time">'+e.ts.toLocaleTimeString()+'</div>';}
+    else if(e.type==='note'){d.className='logentry note';d.innerHTML='<div class="le-svc">✎ '+esc(e.service)+'</div><div class="le-move">'+esc(e.detail)+'</div><div class="le-time">'+e.ts.toLocaleTimeString()+'</div>';}
+    else{d.className='logentry'+(e.revert?' revert':'');d.innerHTML='<div class="le-svc">'+esc(e.service)+'</div><div class="le-move">'+esc(e.group)+': <span class="le-arrow">'+esc(e.from)+' → '+esc(e.to)+'</span>'+(e.revert?' (revert)':'')+'</div><div class="le-time">'+e.ts.toLocaleTimeString()+'</div>';}
+    body.appendChild(d);
+  });
+}
+
+matrix.addEventListener('click',e=>{
+  const del=e.target.closest('.delbtn');
+  if(del){
+    const sv=SERVICES.find(s=>s.id===del.dataset.del); if(!sv) return;
+    if(!confirm('Remove "'+sv.n+'" from the board? This is recorded in the log.')) return;
+    sv.deleted=true;
+    logEvent({type:'del',ts:new Date(),service:sv.n,group:grpLabel(sv.g)});
+    markUnsaved();renderLog();renderChips();
+    return;
+  }
+  const he=e.target.closest('.hedit');
+  if(he&&he.dataset.tier){editTier(he.dataset.tier);return;}
+  if(he&&he.dataset.grp){editGroup(he.dataset.grp);return;}
+  const chip=e.target.closest('.chip');
+  if(chip){openNotes(chip.dataset.id);}
+});
+
+function editTier(id){ openLabelModal('tier',id); }
+function editGroup(id){ openLabelModal('group',id); }
+
+let labelTarget=null;
+function openLabelModal(kind,id){
+  const m=document.getElementById('labelModal');
+  if(kind==='tier'){
+    const t=TIERS.find(x=>x.id===id); if(!t) return;
+    labelTarget={kind:'tier',id:id};
+    document.getElementById('labelTitle').textContent='Edit recovery tier';
+    document.getElementById('labelSub').textContent='Column header shown across the matrix.';
+    document.getElementById('labelL1').textContent='Tier label';
+    document.getElementById('labelL2').textContent='Statement under the label';
+    document.getElementById('labelName').value=t.label;
+    document.getElementById('labelDesc').value=t.desc;
+  } else {
+    const g=GROUPS.find(x=>x.id===id); if(!g) return;
+    labelTarget={kind:'group',id:id};
+    document.getElementById('labelTitle').textContent='Edit breakout group';
+    document.getElementById('labelSub').textContent='Row header shown down the left of the matrix.';
+    document.getElementById('labelL1').textContent='Group label';
+    document.getElementById('labelL2').textContent='Group sublabel / description';
+    document.getElementById('labelName').value=g.label;
+    document.getElementById('labelDesc').value=g.desc;
+  }
+  m.classList.add('open');
+  document.getElementById('labelName').focus();
+}
+document.getElementById('labelCancel').addEventListener('click',()=>document.getElementById('labelModal').classList.remove('open'));
+document.getElementById('labelModal').addEventListener('click',e=>{if(e.target.id==='labelModal')e.currentTarget.classList.remove('open');});
+document.getElementById('labelSave').addEventListener('click',()=>{
+  if(!labelTarget){document.getElementById('labelModal').classList.remove('open');return;}
+  const newL=document.getElementById('labelName').value.trim();
+  const newD=document.getElementById('labelDesc').value.trim();
+  if(labelTarget.kind==='tier'){
+    const t=TIERS.find(x=>x.id===labelTarget.id); if(!t) return;
+    const finalL=newL||t.label;
+    if(finalL===t.label&&newD===t.desc){document.getElementById('labelModal').classList.remove('open');return;}
+    const oldL=t.label; t.label=finalL; t.desc=newD;
+    logEvent({type:'mark',ts:new Date(),label:'Tier relabeled: "'+oldL+'" → "'+finalL+'" / byline: "'+newD+'"'});
+    markUnsaved();renderLog();buildGrid();
+  } else {
+    const g=GROUPS.find(x=>x.id===labelTarget.id); if(!g) return;
+    const finalL=newL||g.label;
+    if(finalL===g.label&&newD===g.desc){document.getElementById('labelModal').classList.remove('open');return;}
+    const oldL=g.label; g.label=finalL; g.desc=newD;
+    logEvent({type:'mark',ts:new Date(),label:'Group relabeled: "'+oldL+'" → "'+finalL+'" / byline: "'+newD+'"'});
+    markUnsaved();renderLog();buildLegend();buildGrid();
+  }
+  document.getElementById('labelModal').classList.remove('open');
+});
+
+const addModal=document.getElementById('addModal');
+const notesModal=document.getElementById('notesModal');
+let notesTargetId=null;
+
+function openNotes(id){
+  const sv=SERVICES.find(s=>s.id===id); if(!sv) return;
+  notesTargetId=id;
+  document.getElementById('notesTitle').textContent=sv.n;
+  document.getElementById('notesMeta').textContent=grpLabel(sv.g)+' · '+(sv.fa||'')+' · current tier '+tierLabel(placement[sv.id]);
+  const descEl=document.getElementById('notesDesc');
+  if(sv.d){descEl.textContent=sv.d;descEl.style.display='block';}else{descEl.style.display='none';}
+  document.getElementById('notesText').value=sv.note||'';
+  notesModal.classList.add('open');
+  document.getElementById('notesText').focus();
+}
+document.getElementById('notesCancel').addEventListener('click',()=>notesModal.classList.remove('open'));
+notesModal.addEventListener('click',e=>{if(e.target===notesModal)notesModal.classList.remove('open');});
+document.getElementById('notesSave').addEventListener('click',()=>{
+  const sv=SERVICES.find(s=>s.id===notesTargetId); if(!sv){notesModal.classList.remove('open');return;}
+  const newNote=document.getElementById('notesText').value.trim();
+  const noteChanged=(sv.note||'')!==newNote;
+  sv.note=newNote;
+  if(noteChanged) logEvent({type:'note',ts:new Date(),service:sv.n,group:grpLabel(sv.g),detail:newNote?'notes updated':'notes cleared'});
+  markUnsaved();notesModal.classList.remove('open');renderLog();renderChips();
+});
+
+document.getElementById('addBtn').addEventListener('click',()=>{document.getElementById('newName').value='';addModal.classList.add('open');document.getElementById('newName').focus();});
+document.getElementById('addCancel').addEventListener('click',()=>addModal.classList.remove('open'));
+addModal.addEventListener('click',e=>{if(e.target===addModal)addModal.classList.remove('open');});
+document.getElementById('addConfirm').addEventListener('click',()=>{
+  const name=document.getElementById('newName').value.replace(/[<>]/g,'').trim();
+  if(!name){alert('Service name is required.');return;}
+  if(SERVICES.some(sv=>!sv.deleted&&sv.n.toLowerCase()===name.toLowerCase())){alert('A service with that name already exists.');return;}
+  const grp=document.getElementById('newGrp').value;
+  const tier=document.getElementById('newTier').value;
+  customCount++;
+  const sv={id:'custom'+customCount,n:name,g:grp,t:tier,orig:tier,fa:'(added in workshop)',custom:true,note:''};
+  SERVICES.push(sv);placement[sv.id]=tier;
+  logEvent({type:'add',ts:new Date(),service:name,group:grpLabel(grp),tier:tierLabel(tier)});
+  markUnsaved();addModal.classList.remove('open');renderLog();renderChips();
+});
+
+document.getElementById('facilitator').addEventListener('input',()=>saveSession());
+
+function download(filename,text,type){const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);}
+function stamp(){return new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');}
+function facil(){return clean(document.getElementById('facilitator').value);}
+function csvRow(r){return r.map(c=>'"'+clean(c).replace(/"/g,'""')+'"').join(',');}
+function csvRowRaw(r){return r.map(c=>'"'+String(c==null?'':c).replace(/"/g,'""')+'"').join(',');}
+
+document.getElementById('exportCsv').addEventListener('click',()=>{
+  const sid=ensureSessionId();
+  const meta=[];
+  meta.push(['VERSION','1']);
+  meta.push(['TOOL','BO1-CBS']);
+  meta.push(['SESSION_ID',sid]);
+  meta.push(['SESSION_START',SESSION_START.toISOString()]);
+  meta.push(['FACILITATOR',facil()||'unnamed']);
+  meta.push(['EXPORTED_AT',new Date().toISOString()]);
+  meta.push(['']);
+  const log=[['Tool','SessionID','Seq','Timestamp','Type','Service','Group','FromTier','ToTier','Reverted','Facilitator','Detail']];
+  activityLog.forEach(e=>{
+    const base=['BO1-CBS',sid,e.seq,e.ts.toISOString()];
+    if(e.type==='mark') log.push([...base,'ROUND MARK',e.label,'','','','',facil(),'']);
+    else if(e.type==='reset') log.push([...base,'PROCESS RESET','Process reset selected','','','','',facil(),'']);
+    else if(e.type==='add') log.push([...base,'ADDED',e.service,e.group,'',e.tier,'',facil(),'']);
+    else if(e.type==='del') log.push([...base,'DELETED',e.service,e.group,'','','',facil(),'']);
+    else if(e.type==='note') log.push([...base,'NOTE',e.service,e.group,'','','',facil(),e.detail]);
+    else log.push([...base,'move',e.service,e.group,e.from,e.to,e.revert?'yes':'no',facil(),'']);
+  });
+  const fs=[];
+  fs.push(['']);
+  fs.push(['--- FINAL STATE (CBS Prioritization sheet) ---']);
+  fs.push(['CBS ID','SessionID','Critical Business Service','Group','Functional Area','Description','Final Tier','Facilitator Notes','Deep-Dive Selected','Origin']);
+  // 'Deep-Dive Selected' is intentionally blank in v1 exports — reserved for facilitator narrowing downstream.
+  SERVICES.filter(s=>!s.deleted).forEach(sv=>{
+    fs.push([sv.id,sid,sv.n,grpLabel(sv.g),sv.fa||'',sv.d||'',tierLabel(placement[sv.id]||'t5'),sv.note||'','',sv.custom?'workshop':'client-inventory']);
+  });
+  // meta rows kept raw (no smart-quote munging of the version banner); data rows cleaned.
+  const csv=meta.map(csvRowRaw).concat(log.map(csvRow)).concat(fs.map(csvRow)).join('\n');
+  download('HealthCo-BO1-CBS-decisionlog_'+stamp()+'.csv',csv,'text/csv');
+  clearUnsaved();
+});
+
+document.getElementById('exportJson').addEventListener('click',()=>{
+  const sid=ensureSessionId();
+  const payload={
+    tool:'BO1-CBS', version:1,
+    session_id:sid, session_start:SESSION_START.toISOString(),
+    exported_at:new Date().toISOString(),
+    facilitator:facil()||'unnamed',
+    groups:GROUPS.map(g=>({id:g.id,label:clean(g.label),desc:clean(g.desc),added:!!g.added})),
+    tiers:TIERS.map(t=>({id:t.id,label:clean(t.label),desc:clean(t.desc)})),
+    activity_log:activityLog.map(e=>({...e,ts:e.ts.toISOString()})),
+    final_state:SERVICES.filter(s=>!s.deleted).map(sv=>({
+      id:sv.id, cbs:clean(sv.n), service:clean(sv.n), group:sv.g, group_label:clean(grpLabel(sv.g)),
+      functional_area:sv.fa||'', description:clean(sv.d||''),
+      tier:tierLabel(placement[sv.id]||'t5'), tier_code:placement[sv.id]||'t5', tier_label:tierLabel(placement[sv.id]||'t5'),
+      notes:clean(sv.note||''),
+      origin:sv.custom?'workshop':'client-inventory'
+    }))
+  };
+  download('HealthCo-BO1-CBS_'+sid+'.json',JSON.stringify(payload,null,2),'application/json');
+  clearUnsaved();
+});
+
+document.getElementById('storageWarnExport').addEventListener('click',()=>document.getElementById('exportCsv').click());
+
+document.getElementById('exportMd').addEventListener('click',()=>{
+  const live=SERVICES.filter(sv=>!sv.deleted);
+  const moved=live.filter(sv=>placement[sv.id]!==sv.orig);
+  const added=live.filter(sv=>sv.custom);
+  const deleted=SERVICES.filter(sv=>sv.deleted);
+  let md='# HealthCo (Demo) — CBS Prioritization: Workshop Readout\n\n';
+  md+='**Tool:** BO1 · CBS Prioritization (EY facilitation instrument)  \n';
+  md+='**Session ID:** '+ensureSessionId()+'  \n';
+  md+='**Session:** '+(facil()||'(unnamed)')+'  \n';
+  md+='**Exported:** '+new Date().toLocaleString()+'  \n';
+  md+='**Source:** Demonstration service inventory (fictional HealthCo data); EY framework-anchored hypothesis.\n\n';
+  md+='> Placements are an EY working hypothesis for CEO Council validation, not final guidance.\n\n';
+  md+='## Net changes from EY starting hypothesis ('+moved.length+')\n\n';
+  if(!moved.length) md+='_No services were repositioned. The room validated the EY hypothesis as-is._\n\n';
+  else{md+='| Service | Group | EY hypothesis | Council decision |\n|---|---|---|---|\n';
+    moved.forEach(sv=>{md+='| '+escapeMD(sv.n)+' | '+escapeMD(grpLabel(sv.g))+' | '+escapeMD(tierLabel(sv.orig))+' | '+escapeMD(tierLabel(placement[sv.id]||'t5'))+' |\n';});md+='\n';}
+  if(added.length){md+='## Services added in workshop ('+added.length+')\n\n| Service | Group | Tier |\n|---|---|---|\n';
+    added.forEach(sv=>{md+='| '+escapeMD(sv.n)+' | '+escapeMD(grpLabel(sv.g))+' | '+escapeMD(tierLabel(placement[sv.id]||'t5'))+' |\n';});md+='\n';}
+  if(deleted.length){md+='## Services removed in workshop ('+deleted.length+')\n\n';
+    deleted.forEach(sv=>{md+='- '+escapeMD(sv.n)+' ('+escapeMD(grpLabel(sv.g))+')\n';});md+='\n';}
+  const noted=live.filter(sv=>sv.note&&sv.note.trim());
+  if(noted.length){md+='## Facilitator notes ('+noted.length+')\n\n';
+    noted.forEach(sv=>{md+='**'+escapeMD(sv.n)+'** ('+escapeMD(grpLabel(sv.g))+')  \n'+clean(sv.note)+'\n\n';});}
+  const resets=activityLog.filter(e=>e.type==='reset').length;
+  if(resets) md+='_Board was reset '+resets+(resets===1?' time':' times')+' during the session; the log below is complete and continuous._\n\n';
+  md+='## Full decision log\n\n| Seq | Time | Type | Detail |\n|---|---|---|---|\n';
+  activityLog.forEach(e=>{
+    if(e.type==='mark') md+='| '+e.seq+' | '+e.ts.toLocaleTimeString()+' | round | ⚑ '+escapeMD(e.label)+' |\n';
+    else if(e.type==='reset') md+='| '+e.seq+' | '+e.ts.toLocaleTimeString()+' | reset | ↻ Process reset selected |\n';
+    else if(e.type==='add') md+='| '+e.seq+' | '+e.ts.toLocaleTimeString()+' | add | + '+escapeMD(e.service)+' → '+escapeMD(e.tier)+' ('+escapeMD(e.group)+') |\n';
+    else if(e.type==='del') md+='| '+e.seq+' | '+e.ts.toLocaleTimeString()+' | delete | × '+escapeMD(e.service)+' ('+escapeMD(e.group)+') |\n';
+    else if(e.type==='note') md+='| '+e.seq+' | '+e.ts.toLocaleTimeString()+' | note | ✎ '+escapeMD(e.service)+': '+escapeMD(e.detail)+' |\n';
+    else md+='| '+e.seq+' | '+e.ts.toLocaleTimeString()+' | move | '+escapeMD(e.service)+': '+escapeMD(e.from)+' → '+escapeMD(e.to)+(e.revert?' (revert)':'')+' |\n';
+  });
+  md+='\n---\n*EY · Enterprise Resilience Workout · Demonstration build — fictional data*\n';
+  download('HealthCo-BO1-CBS-readout_'+stamp()+'.md',md,'text/markdown');
+  clearUnsaved();
+});
+
+const restored=loadSession();
+ensureSessionId();
+rebuildGroupDropdowns();
+buildLegend();buildGrid();renderLog();updateUndoBtn();
+if(restored){
+  const when=restored.savedAt?new Date(restored.savedAt).toLocaleString():'';
+  document.getElementById('restoreInfo').textContent=(when?'last saved '+when:'saved session found')+(restored.moves?' · '+restored.moves+' move'+(restored.moves===1?'':'s')+' on record':'');
+  document.getElementById('restoreBar').classList.add('show');
+  if(unsavedSinceExport) document.getElementById('logBtn').classList.add('unsaved');
+}
+document.getElementById('restoreDismiss').addEventListener('click',()=>document.getElementById('restoreBar').classList.remove('show'));
+</script>
+</body>
+</html>

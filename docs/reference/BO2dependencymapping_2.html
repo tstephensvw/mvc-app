@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<!--
+ENTERPRISE RESILIENCE WORKOUT (HEALTHCO DEMO) — TOOL 2 of 4: CBS DEPENDENCY MAPPING
+EY facilitation instrument. Build: 2026-06-13. Owner: Tim Stephens / EY.
+Inherits BO1 (CBS Prioritization). LIGHT SUITE THEME (2026-07-27; reverses EY-dark, per Tim / Partner feedback). 5 lenses locked. Regulatory/framework anchors CUT suite-wide (per Tim). BO2 mints dependency IDs.
+GENERIC DEMO BUILD (2026-07-27): all client data replaced with the fictional HealthCo dataset. CBS_CATALOG + PREPOP are generated from the same source as BO1's SERVICES (dataset.py) so they cannot drift.
+Export hardening contract applied: SESSION_ID+seq, clean()/escapeMD() at export boundary, esc() for DOM only,
+CSV two-block + JSON (primary feed) + MD, non-blocking save banner. Reset clears board, keeps log.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EY · Enterprise Resilience Workout — Dependency Mapping (Demo)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap');
+  :root{
+    --accent:#00708c; --accent-dk:#004c5f; --accent-lt:#e4f1f4;
+    --bg:#f2f5f6; --bg2:#ffffff; --panel:#ffffff; --panel2:#f2f6f7;
+    --ink:#1c2b30; --muted:#5d7077; --line:#d4dde0; --line2:#b9c8cc;
+    --g1:#3a8d3f; --g1d:#2c6b30; --g2:#c77d2e; --g2d:#9c6224;
+    --g3:#a8568f; --g3d:#7a3f6d; --g4:#a96fd6; --g4d:#7e52a0;
+    --confirm:#2e6f54; --confirmd:#245743; --reject:#c0392b; --warn:#b9770e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Archivo','Segoe UI',system-ui,-apple-system,sans-serif;color:var(--ink);background:var(--bg);line-height:1.4;-webkit-font-smoothing:antialiased}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  header{background:linear-gradient(120deg,var(--accent-dk),var(--accent));color:#fff;padding:18px 30px 16px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 12px rgba(0,40,52,.22)}
+  .htitle h1{font-size:19px;font-weight:800;letter-spacing:-.3px;color:#fff}
+  .htitle .sub{font-family:'Source Serif 4',Georgia,serif;font-size:12.5px;color:rgba(255,255,255,.85);margin-top:3px}
+  .hstep{margin-left:auto;font-size:10.5px;color:rgba(255,255,255,.75);text-align:right;line-height:1.6}
+  .hstep b{color:#fff;font-weight:800}
+  .hver{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;letter-spacing:.4px;color:#fff;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);border-radius:4px;padding:2px 8px}
+  .demobadge{display:inline-block;margin-top:6px;margin-left:8px;font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#fff;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);border-radius:4px;padding:2px 8px;vertical-align:middle}
+
+  .savebanner{display:none;background:#fbe9e7;border-bottom:1px solid var(--reject);color:#7a2c22;font-size:12px;padding:8px 30px}
+  .savebanner.show{display:block}
+  .savebanner b{color:#c0392b}
+  .restorebar{display:none;background:var(--accent-lt);border-bottom:1px solid var(--accent);color:var(--accent-dk);font-size:12px;padding:8px 30px}
+  .restorebar.show{display:block}
+  .restorebar button{margin-left:10px;font-size:11px;border:1px solid var(--accent-dk);background:var(--panel);color:var(--ink);border-radius:6px;padding:3px 9px;cursor:pointer;font-family:inherit}
+
+  .toolbar{display:flex;flex-wrap:wrap;gap:9px 14px;align-items:center;padding:12px 30px;background:var(--bg2);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30}
+  .tb-group{display:flex;align-items:center;gap:7px}
+  .tb-group label{color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;font-size:10px}
+  select,button.tb{font-family:inherit;font-size:12px;padding:6px 11px;border:1px solid var(--line2);border-radius:6px;background:var(--panel);color:var(--ink);cursor:pointer;transition:all .12s}
+  select:hover,button.tb:hover{border-color:var(--accent)}
+  button.tb.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+  button.tb.primary:hover{background:var(--accent-dk);border-color:var(--accent-dk)}
+  button.tb:disabled{opacity:.4;cursor:not-allowed}
+  button.tb:disabled:hover{border-color:var(--line2)}
+  #logBtn.unsaved{border-color:var(--warn);position:relative}
+  #logBtn.unsaved::after{content:'';position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:var(--warn);animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .loadwrap{position:relative;overflow:hidden;display:inline-flex}
+  .loadwrap input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
+
+  .legendbar{display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:8px 30px;background:var(--bg);border-bottom:1px solid var(--line);font-size:11px}
+  .lg{display:flex;align-items:center;gap:6px;color:var(--muted)}
+  .lgkey{width:13px;height:13px;border-radius:3px;border-left:4px solid}
+  .lgnote{margin-left:auto;color:var(--muted);font-size:10.5px;font-style:italic}
+
+  .layout{display:grid;grid-template-columns:248px 1fr;min-height:calc(100vh - 230px)}
+  .sidebar{border-right:1px solid var(--line);background:var(--bg2);padding:14px 14px 30px;overflow-y:auto}
+  .sbhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+  .sbhead strong{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+  .sbprog{font-size:10px;color:var(--muted);margin:2px 0 12px}
+  .sbgroup{font-size:9.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;margin:13px 0 5px;padding-left:7px;border-left:3px solid}
+  .cbsitem{display:block;width:100%;text-align:left;border:1px solid var(--line);border-left:4px solid var(--muted);background:var(--panel);color:var(--ink);border-radius:7px;padding:8px 9px;margin-bottom:6px;cursor:pointer;font-family:inherit;font-size:12px;line-height:1.3;transition:border-color .12s,background .12s}
+  .cbsitem:hover{border-color:var(--accent)}
+  .cbsitem.active{background:var(--panel2);border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent-dk)}
+  .cbsitem .cbn{font-weight:600;display:block}
+  .cbsitem .cbmeta{font-size:9.5px;color:var(--muted);margin-top:3px;display:flex;gap:7px;flex-wrap:wrap}
+  .cbsitem.dimmed{opacity:.32;filter:saturate(.4)}
+  .sbempty{font-size:11.5px;color:var(--muted);font-style:italic;line-height:1.5;padding:8px 4px}
+
+  .content{padding:18px 26px 70px;overflow-x:auto}
+  .context{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:15px 17px;margin-bottom:16px;border-top:4px solid var(--muted)}
+  .ctxtop{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  .ctxname{font-size:17px;font-weight:700;letter-spacing:-.2px}
+  .ctxchips{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:5px}
+  .pill{font-size:10px;font-weight:700;letter-spacing:.3px;padding:3px 9px;border-radius:20px;color:#fff}
+  .pill.tier{background:var(--panel2);color:var(--ink);border:1px solid var(--line2);font-weight:600}
+  .pill.fa{background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:600}
+  .ctxright{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .descope{border:1px solid var(--line2);background:var(--panel2);color:var(--muted);border-radius:6px;font-size:11px;padding:5px 9px;cursor:pointer;font-family:inherit}
+  .descope:hover{border-color:var(--reject);color:#f0b6ad}
+  .ctxdesc{font-size:12px;color:var(--ink);background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--muted);border-radius:6px;padding:8px 11px;margin:12px 0 10px;line-height:1.45;font-style:italic}
+  #ctxDesc{cursor:pointer;transition:border-color .12s}
+  #ctxDesc:hover{border-left-color:var(--accent-dk)}
+  #ctxDesc .editpencil{color:var(--muted);font-style:normal;font-size:10px;margin-right:6px;opacity:.6}
+  .ctxdesc.empty{color:var(--muted);font-style:normal}
+  .descedit{margin:12px 0 10px}
+  .descedit textarea{width:100%;font-family:inherit;font-size:12px;padding:8px 11px;border:1px solid var(--line2);border-radius:6px;background:var(--bg2);color:var(--ink);resize:vertical;line-height:1.45}
+  .descedit-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:7px}
+
+  .lensgrid{display:grid;grid-template-columns:repeat(5,minmax(190px,1fr));gap:10px;min-width:1020px}
+  .lenscol{background:#fff;border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-height:220px}
+  .lenshead{padding:10px 11px;border-bottom:1px solid var(--line);border-radius:10px 10px 0 0;background:var(--panel2)}
+  .lenshead .lt{font-weight:800;font-size:12.5px;display:flex;align-items:center;gap:6px}
+  .lenshead .lc{font-size:9.5px;color:var(--muted);margin-top:3px;cursor:help}
+  .lenshead .lcount{margin-left:auto;font-size:9.5px;font-weight:700;color:var(--muted);background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:1px 7px}
+  .prepick{font-size:8px;font-weight:800;letter-spacing:.3px;color:var(--accent);border:1px solid var(--accent-dk);border-radius:3px;padding:1px 4px;cursor:help}
+  .lensbody{flex:1;padding:8px;display:flex;flex-direction:column;gap:6px}
+  .lensempty{font-size:11px;color:var(--muted);font-style:italic;text-align:center;padding:14px 6px;line-height:1.5}
+
+  .depchip{background:#fff;border:1px solid var(--line);border-left:4px solid var(--muted);border-radius:7px;padding:7px 8px;position:relative;transition:border-color .12s,opacity .12s}
+  .depchip.confirmed{border-left-color:var(--confirm)}
+  .depchip.rejected{border-left-color:var(--reject);opacity:.55}
+  .depname{font-size:11.5px;line-height:1.25;padding-right:14px;display:block}
+  .depchip.rejected .depname{text-decoration:line-through}
+  .deptags{display:flex;align-items:center;gap:5px;margin-top:6px;flex-wrap:wrap}
+  .orig{font-size:8px;font-weight:700;letter-spacing:.3px;padding:1px 5px;border-radius:3px;border:1px solid var(--line2);color:var(--muted)}
+  .orig.manual{color:var(--accent);border-color:var(--accent-dk)}
+  .orig.pre{color:#3d6a8a;border-color:#9dbdd4}
+  .cbtns{display:inline-flex;gap:4px;margin-left:auto}
+  .cact{border:1px solid var(--line2);background:var(--bg2);color:var(--muted);border-radius:5px;font-size:11px;line-height:1;padding:3px 7px;cursor:pointer;font-family:inherit;font-weight:700}
+  .cact:hover{border-color:var(--accent)}
+  .cact.yes.on{background:var(--confirm);border-color:var(--confirm);color:#fff}
+  .cact.no.on{background:#fbe9e7;border-color:var(--reject);color:#c0392b}
+  .noteflag{font-size:9px;color:var(--accent);cursor:help}
+  .depdel{position:absolute;top:5px;right:6px;border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;opacity:0;padding:0 1px;transition:opacity .12s,color .12s}
+  .depchip:hover .depdel{opacity:.65}
+  .depdel:hover{color:var(--reject);opacity:1}
+  body.present .depdel,body.present .addrow{display:none}
+
+  .addrow{display:flex;gap:5px;margin-top:2px}
+  .addrow input{flex:1;font-family:inherit;font-size:11px;padding:6px 8px;border:1px dashed var(--line2);border-radius:6px;background:var(--bg);color:var(--ink)}
+  .addrow input:focus{border-style:solid;border-color:var(--accent)}
+  .addrow button{border:1px solid var(--line2);background:var(--panel);color:var(--ink);border-radius:6px;font-size:11px;padding:6px 9px;cursor:pointer;font-family:inherit;font-weight:700}
+  .addrow button:hover{border-color:var(--accent)}
+
+  footer{padding:14px 30px;border-top:1px solid var(--line);font-size:10.5px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;background:var(--bg2)}
+
+  .logdrawer{position:fixed;top:0;right:-460px;width:450px;height:100vh;background:var(--bg2);border-left:1px solid var(--line);box-shadow:-8px 0 30px rgba(20,50,60,.18);z-index:60;display:flex;flex-direction:column;transition:right .28s cubic-bezier(.4,0,.2,1)}
+  .logdrawer.open{right:0}
+  .loghead{padding:18px 20px 14px;border-bottom:1px solid var(--line);position:relative}
+  .loghead strong{font-size:15px;display:block;color:var(--accent)}
+  .logsub{font-size:11px;color:var(--muted);display:block;margin-top:3px;max-width:350px}
+  .logclose{position:absolute;top:16px;right:16px;border:none;background:none;font-size:17px;cursor:pointer;color:var(--muted)}
+  .logbody{flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:9px}
+  .logempty{font-size:12px;color:var(--muted);font-style:italic;text-align:center;margin-top:30px;line-height:1.5}
+  .logentry{border:1px solid var(--line);border-left:4px solid var(--accent-dk);border-radius:8px;padding:9px 11px;font-size:12px;line-height:1.4;background:var(--panel);animation:slidein .25s ease}
+  .logentry.reset{border-left-color:var(--reject);background:var(--panel2)}
+  .logentry.add,.logentry.confirm{border-left-color:var(--confirm)}
+  .logentry.del,.logentry.reject{border-left-color:var(--reject)}
+  .logentry.note{border-left-color:var(--accent-dk)}
+  .logentry.scope{border-left-color:var(--ink)}
+  @keyframes slidein{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+  .le-svc{font-weight:700}
+  .le-move{color:var(--muted);margin-top:2px}
+  .le-time{font-size:9.5px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.4px}
+  .le-seq{float:right;font-size:9px;color:var(--muted);font-weight:700}
+  .logmark{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--accent);text-align:center;padding:6px 0;border-top:2px solid var(--line);border-bottom:2px solid var(--line);margin:3px 0;background:var(--panel)}
+  .logfoot{padding:13px 18px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:9px}
+  .logfoot input{font-family:inherit;font-size:12px;padding:7px 10px;border:1px solid var(--line2);border-radius:7px;background:var(--panel);color:var(--ink)}
+  .logfoot .exprow{display:flex;gap:7px}
+  .logfoot .exprow .tb{flex:1}
+  .feedhint{font-size:9.5px;color:var(--muted);text-align:center;font-style:italic}
+
+  body.present .toolbar,body.present .legendbar,body.present footer{display:none}
+  body.present header{padding:12px 30px}
+  body.present .layout{grid-template-columns:210px 1fr}
+  body.present .depname{font-size:13px}
+  body.present .sbhead button,body.present .sbprog{display:none}
+  .exitpresent{display:none;position:fixed;bottom:18px;right:18px;z-index:70;background:var(--accent);color:#fff;border:none;padding:10px 16px;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(20,50,60,.25)}
+  body.present .exitpresent{display:block}
+
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(12,42,52,.45);z-index:80;align-items:center;justify-content:center}
+  .modal-bg.open{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line2);border-radius:12px;padding:22px 24px;width:430px;max-width:92vw;box-shadow:0 18px 50px rgba(20,50,60,.22);display:flex;flex-direction:column;gap:7px}
+  .modal strong{font-size:15px;color:var(--accent)}
+  .modal-sub{font-size:11px;color:var(--muted);margin-bottom:6px;line-height:1.4}
+  .modal label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-top:4px}
+  .modal input,.modal select{font-family:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line2);border-radius:7px;background:var(--bg2);color:var(--ink)}
+  .modal-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:12px}
+  .depscaffold{font-size:12px;color:var(--ink);background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--muted);border-radius:6px;padding:8px 11px;margin-bottom:4px;line-height:1.45;font-style:italic}
+  .modal textarea{font-family:inherit;font-size:13px;padding:9px 11px;border:1px solid var(--line2);border-radius:8px;background:var(--bg2);color:var(--ink);resize:vertical;line-height:1.45}
+
+  @media (prefers-reduced-motion: reduce){*{animation:none !important;transition:none !important}}
+  @media (max-width:880px){.layout{grid-template-columns:1fr}.sidebar{border-right:none;border-bottom:1px solid var(--line);max-height:260px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="htitle">
+    <h1>Critical Business Services — Dependency Mapping</h1>
+    <div class="sub">HealthCo (fictional client) · Enterprise Resilience Workout · Day 2 · Breakout 2</div>
+    <div class="hver">v1.3 demo &middot; 2026-07-27</div><span class="demobadge">Demo dataset · fictional client</span>
+  </div>
+  <div class="hstep">STEP <b>2</b> OF 4<br>Prioritize → Map → Risk → Readiness</div>
+</header>
+
+<div class="savebanner" id="saveBanner">⚠ <b>Not saving locally.</b> Browser storage is unavailable — your work is safe in memory, but export now (Activity log &amp; export) so nothing is lost.</div>
+
+<div class="restorebar" id="restoreBar">
+  ↻ <strong>Previous session restored</strong> — <span id="restoreInfo"></span>.
+  <button id="restoreDismiss">OK</button>
+</div>
+
+<div class="toolbar">
+  <div class="tb-group">
+    <label>Focus group</label>
+    <select id="grpFilter">
+      <option value="all">All groups</option>
+      <option value="G1">Clinical</option>
+      <option value="G2">IT / Cyber</option>
+      <option value="G3">Health Plan</option>
+      <option value="G4">Back Office / Supply Chain</option>
+    </select>
+  </div>
+  <span class="loadwrap"><button class="tb">⭱ Load BO1 export</button><input type="file" id="loadBo1" accept=".csv,.json,text/csv,application/json" title="Load the BO1 prioritization export to carry forward deep-dive services"/></span>
+  <button class="tb primary" id="addCbsBtn">+ Add CBS</button>
+  <button class="tb" id="resetBtn">Reset board</button>
+  <button class="tb" id="undoBtn" disabled>↩ Undo</button>
+  <button class="tb" id="snapBtn">⚑ Mark round</button>
+  <button class="tb" id="presentBtn">⛶ Present</button>
+  <button class="tb" id="logBtn">Activity log &amp; export <span id="logCount">(0)</span></button>
+</div>
+
+<div class="legendbar">
+  <span class="lg"><span class="lgkey" style="border-left-color:var(--confirm);background:var(--panel2)"></span>Confirmed dependency</span>
+  <span class="lg"><span class="lgkey" style="border-left-color:var(--reject);background:var(--panel2)"></span>Not a dependency (rejected)</span>
+  <span class="lg"><span class="lgkey" style="border-left-color:var(--muted);background:var(--panel2)"></span>To review</span>
+  <span class="lgnote">Tech &amp; Third-Party items are pre-filled from the client's system and vendor matrices, ordered by rank (1 = primary) — an EY hypothesis the room validates or rejects. Demo build: fictional HealthCo matrices. People / Process / Facilities are live capture.</span>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sbhead"><strong>In-scope services</strong><button class="tb" id="addCbsBtn2" style="font-size:11px;padding:4px 8px">+ Add</button></div>
+    <div class="sbprog" id="sbProg"></div>
+    <div id="cbsList"></div>
+  </aside>
+  <main class="content">
+    <div class="context" id="context"></div>
+    <div class="lensgrid" id="lensGrid"></div>
+  </main>
+</div>
+
+<footer>
+  <span>Click ✓ / ✗ on a dependency to validate or reject it · click the name to add facilitator notes or rename · type in a lens to add one the room raises. <b>Reset</b> clears the board but keeps the log.</span>
+  <span>EY · Enterprise Resilience Workout · Demonstration build — fictional data</span>
+</footer>
+
+<button class="exitpresent" id="exitPresent">⛶ Exit presentation</button>
+
+<div class="logdrawer" id="logDrawer">
+  <div class="loghead">
+    <strong>Decision Log</strong>
+    <span class="logsub">Every validation, addition, deletion, note, and reset is captured with a sequence number for AI synthesis into the master workbook.</span>
+    <button class="logclose" id="logClose">✕</button>
+  </div>
+  <div class="logbody" id="logBody">
+    <div class="logempty">No decisions yet. Confirm, reject, or add a dependency and it is recorded with a sequence number and timestamp.</div>
+  </div>
+  <div class="logfoot">
+    <input id="facilitator" placeholder="Facilitator / session name (optional)" />
+    <button class="tb primary" id="exportJson" style="width:100%">⭳ Download dependency map (JSON · primary feed)</button>
+    <div class="feedhint">JSON is the primary aggregation feed for BO2's nested data. CSV below stays the canonical tabular record.</div>
+    <div class="exprow">
+      <button class="tb" id="exportCsv">CSV</button>
+      <button class="tb" id="exportMd">Readout (.md)</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="cbsModal">
+  <div class="modal">
+    <strong>Add a critical business service</strong>
+    <p class="modal-sub">Bring a service into scope for dependency mapping. Pick one carried forward from prioritization, or add one the room raises.</p>
+    <label>Carried-forward / catalog service</label>
+    <select id="cbsPick"></select>
+    <label>— or add a new service raised in the room —</label>
+    <input id="cbsNewName" placeholder="e.g. Dialysis services" maxlength="90"/>
+    <label>Breakout group (for a new service)</label>
+    <select id="cbsNewGrp">
+      <option value="G1">Clinical</option>
+      <option value="G2">IT / Cyber</option>
+      <option value="G3">Health Plan</option>
+      <option value="G4">Back Office / Supply Chain</option>
+    </select>
+    <div class="modal-actions">
+      <button class="tb" id="cbsCancel">Cancel</button>
+      <button class="tb primary" id="cbsConfirm">Add to scope</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="depModal">
+  <div class="modal">
+    <strong id="depTitle">Dependency</strong>
+    <p class="modal-sub" id="depMeta"></p>
+    <div class="depscaffold" id="depScaffold"></div>
+    <label>Dependency name</label>
+    <input id="depNameInput" maxlength="120"/>
+    <label>Facilitator notes — coverage, locations, criticality, caveats</label>
+    <textarea id="depNotes" rows="5" placeholder="e.g. Primary EHR; failover to read-only BCA after 4h; 3 of 12 sites on downtime procedures only."></textarea>
+    <div class="modal-actions">
+      <button class="tb" id="depCancel">Close</button>
+      <button class="tb primary" id="depSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== Injected data (validated upstream; replaced at build time) ===== */
+const PREPOP = {"Emergency Department & Trauma": {"tech": [{"name": "MediCore EHR", "rank": 1}, {"name": "VitalWatch Patient Monitoring", "rank": 2}, {"name": "IntegraLink Interface Engine", "rank": 3}, {"name": "DictaNote Speech Recognition", "rank": 4}, {"name": "LabLine LIS", "rank": 5}, {"name": "RadView PACS", "rank": 6}], "thirdparty": [{"name": "MediCore Systems Inc. (EHR vendor)", "rank": 1}, {"name": "Vantage Medical Devices", "rank": 2}, {"name": "Reliant Staffing Group", "rank": 3}, {"name": "LinguaCall Interpretation Services", "rank": 4}]}, "ICU / Critical Care": {"tech": [{"name": "MediCore EHR", "rank": 1}, {"name": "VitalWatch Patient Monitoring", "rank": 2}, {"name": "PharmaTrack Dispensing Cabinets", "rank": 3}, {"name": "IntegraLink Interface Engine", "rank": 4}, {"name": "DictaNote Speech Recognition", "rank": 5}, {"name": "LabLine LIS", "rank": 6}], "thirdparty": [{"name": "MediCore Systems Inc. (EHR vendor)", "rank": 1}, {"name": "Vantage Medical Devices", "rank": 2}, {"name": "RxDirect Pharmaceutical Distribution", "rank": 3}, {"name": "Reliant Staffing Group", "rank": 4}]}, "Labor & Delivery": {"tech": [{"name": "MediCore EHR", "rank": 1}, {"name": "VitalWatch Patient Monitoring", "rank": 2}, {"name": "IntegraLink Interface Engine", "rank": 3}, {"name": "LabLine LIS", "rank": 4}, {"name": "DictaNote Speech Recognition", "rank": 5}], "thirdparty": [{"name": "MediCore Systems Inc. (EHR vendor)", "rank": 1}, {"name": "Vantage Medical Devices", "rank": 2}, {"name": "Reliant Staffing Group", "rank": 3}]}, "Operating Room (emergent cases)": {"tech": [{"name": "MediCore EHR", "rank": 1}, {"name": "SterileTrack Instrument Management", "rank": 2}, {"name": "PharmaTrack Dispensing Cabinets", "rank": 3}, {"name": "VitalWatch Patient Monitoring", "rank": 4}, {"name": "DictaNote Speech Recognition", "rank": 5}, {"name": "IntegraLink Interface Engine", "rank": 6}], "thirdparty": [{"name": "SteriPro Sterilization Services", "rank": 1}, {"name": "MediCore Systems Inc. (EHR vendor)", "rank": 2}, {"name": "Vantage Medical Devices", "rank": 3}, {"name": "MedSupply Logistics", "rank": 4}]}, "Blood Bank & Transfusion": {"tech": [{"name": "LabLine LIS", "rank": 1}, {"name": "MediCore EHR", "rank": 2}, {"name": "IntegraLink Interface Engine", "rank": 3}], "thirdparty": [{"name": "Crestline Reference Laboratories", "rank": 1}, {"name": "MedSupply Logistics", "rank": 2}]}, "Respiratory Therapy": {"tech": [{"name": "MediCore EHR", "rank": 1}, {"name": "VitalWatch Patient Monitoring", "rank": 2}, {"name": "IntegraLink Interface Engine", "rank": 3}, {"name": "DictaNote Speech Recognition", "rank": 4}], "thirdparty": [{"name": "Vantage Medical Devices", "rank": 1}, {"name": "MedSupply Logistics", "rank": 2}]}, "Acute Stroke Response": {"tech": [{"name": "MediCore EHR", "rank": 1}, {"name": "RadView PACS", "rank": 2}, {"name": "VitalWatch Patient Monitoring", "rank": 3}, {"name": "IntegraLink Interface Engine", "rank": 4}, {"name": "DictaNote Speech Recognition", "rank": 5}], "thirdparty": [{"name": "MediCore Systems Inc. (EHR vendor)", "rank": 1}, {"name": "Vantage Medical Devices", "rank": 2}]}, "Inpatient Nursing Units": {"tech": [{"name": "MediCore EHR", "rank": 1}, {"name": "VitalWatch Patient Monitoring", "rank": 2}, {"name": "PharmaTrack Dispensing Cabinets", "rank": 3}, {"name": "IntegraLink Interface Engine", "rank": 4}, {"name": "DictaNote Speech Recognition", "rank": 5}], "thirdparty": [{"name": "MediCore Systems Inc. (EHR vendor)", "rank": 1}, {"name": "Reliant Staffing Group", "rank": 2}, {"name": "Vantage Medical Devices", "rank": 3}]}, "Clinical Laboratory": {"tech": [{"name": "LabLine LIS", "rank": 1}, {"name": "MediCore EHR", "rank": 2}, {"name": "IntegraLink Interface Engine", "rank": 3}, {"name": "InsightBI Analytics", "rank": 4}], "thirdparty": [{"name": "Crestline Reference Laboratories", "rank": 1}, {"name": "MedSupply Logistics", "rank": 2}, {"name": "Vantage Medical Devices", "rank": 3}]}, "Inpatient Pharmacy": {"tech": [{"name": "MediCore EHR", "rank": 1}, {"name": "PharmaTrack Dispensing Cabinets", "rank": 2}, {"name": "IntegraLink Interface Engine", "rank": 3}, {"name": "LabLine LIS", "rank": 4}], "thirdparty": [{"name": "RxDirect Pharmaceutical Distribution", "rank": 1}, {"name": "NationalRx PBM", "rank": 2}, {"name": "MedSupply Logistics", "rank": 3}]}, "Diagnostic Imaging": {"tech": [{"name": "RadView PACS", "rank": 1}, {"name": "MediCore EHR", "rank": 2}, {"name": "IntegraLink Interface Engine", "rank": 3}, {"name": "DictaNote Speech Recognition", "rank": 4}], "thirdparty": [{"name": "Vantage Medical Devices", "rank": 1}, {"name": "MediCore Systems Inc. (EHR vendor)", "rank": 2}]}, "Case Management & Discharge Planning": {"tech": [{"name": "MediCore EHR", "rank": 1}, {"name": "CareLink Patient Portal", "rank": 2}, {"name": "IntegraLink Interface Engine", "rank": 3}], "thirdparty": [{"name": "MediCore Systems Inc. (EHR vendor)", "rank": 1}, {"name": "LinguaCall Interpretation Services", "rank": 2}]}, "Ambulatory Surgery Centers": {"tech": [{"name": "MediCore EHR", "rank": 1}, {"name": "SterileTrack Instrument Management", "rank": 2}, {"name": "PharmaTrack Dispensing Cabinets", "rank": 3}, {"name": "DictaNote Speech Recognition", "rank": 4}], "thirdparty": [{"name": "SteriPro Sterilization Services", "rank": 1}, {"name": "MedSupply Logistics", "rank": 2}, {"name": "Vantage Medical Devices", "rank": 3}]}, "Virtual Care / Telehealth": {"tech": [{"name": "TeleVisit Platform", "rank": 1}, {"name": "MediCore EHR", "rank": 2}, {"name": "CareLink Patient Portal", "rank": 3}, {"name": "OneID SSO & MFA", "rank": 4}], "thirdparty": [{"name": "MetroNet Communications", "rank": 1}, {"name": "MediCore Systems Inc. (EHR vendor)", "rank": 2}]}, "Infection Prevention & Control": {"tech": [{"name": "MediCore EHR", "rank": 1}, {"name": "LabLine LIS", "rank": 2}, {"name": "InsightBI Analytics", "rank": 3}], "thirdparty": [{"name": "Crestline Reference Laboratories", "rank": 1}]}, "Home Health Services": {"tech": [{"name": "MediCore EHR", "rank": 1}, {"name": "CareLink Patient Portal", "rank": 2}, {"name": "TeleVisit Platform", "rank": 3}], "thirdparty": [{"name": "MedSupply Logistics", "rank": 1}, {"name": "Reliant Staffing Group", "rank": 2}]}, "Elective Surgery": {"tech": [{"name": "MediCore EHR", "rank": 1}, {"name": "SterileTrack Instrument Management", "rank": 2}, {"name": "PharmaTrack Dispensing Cabinets", "rank": 3}, {"name": "DictaNote Speech Recognition", "rank": 4}], "thirdparty": [{"name": "SteriPro Sterilization Services", "rank": 1}, {"name": "MedSupply Logistics", "rank": 2}]}, "Behavioral Health (routine)": {"tech": [{"name": "MediCore EHR", "rank": 1}, {"name": "CareLink Patient Portal", "rank": 2}, {"name": "TeleVisit Platform", "rank": 3}, {"name": "DictaNote Speech Recognition", "rank": 4}], "thirdparty": [{"name": "Reliant Staffing Group", "rank": 1}]}, "Clinical Research Programs": {"tech": [{"name": "MediCore EHR", "rank": 1}, {"name": "InsightBI Analytics", "rank": 2}], "thirdparty": [{"name": "Crestline Reference Laboratories", "rank": 1}]}, "Enterprise Command Center": {"tech": [{"name": "ReachAll Mass Notification", "rank": 1}, {"name": "DeskFlow ITSM", "rank": 2}, {"name": "NetPulse Network Monitoring", "rank": 3}, {"name": "MediCore EHR", "rank": 4}], "thirdparty": [{"name": "MetroNet Communications", "rank": 1}, {"name": "Sentinel Managed Security", "rank": 2}]}, "EHR Platform Operations": {"tech": [{"name": "MediCore EHR", "rank": 1}, {"name": "IntegraLink Interface Engine", "rank": 2}, {"name": "OneID SSO & MFA", "rank": 3}, {"name": "SkyVault Cloud Hosting", "rank": 4}, {"name": "DeskFlow ITSM", "rank": 5}], "thirdparty": [{"name": "MediCore Systems Inc. (EHR vendor)", "rank": 1}, {"name": "SkyVault Cloud Inc.", "rank": 2}]}, "Network & Connectivity": {"tech": [{"name": "NetPulse Network Monitoring", "rank": 1}, {"name": "OneID SSO & MFA", "rank": 2}, {"name": "DeskFlow ITSM", "rank": 3}], "thirdparty": [{"name": "MetroNet Communications", "rank": 1}, {"name": "SkyVault Cloud Inc.", "rank": 2}]}, "Identity & Access Management": {"tech": [{"name": "OneID SSO & MFA", "rank": 1}, {"name": "DeskFlow ITSM", "rank": 2}, {"name": "ShieldSIEM Security Analytics", "rank": 3}], "thirdparty": [{"name": "Sentinel Managed Security", "rank": 1}, {"name": "SkyVault Cloud Inc.", "rank": 2}]}, "Data Center & Cloud Hosting": {"tech": [{"name": "SkyVault Cloud Hosting", "rank": 1}, {"name": "VaultSync Backup & Restore", "rank": 2}, {"name": "NetPulse Network Monitoring", "rank": 3}, {"name": "OneID SSO & MFA", "rank": 4}], "thirdparty": [{"name": "SkyVault Cloud Inc.", "rank": 1}, {"name": "Commonwealth Power & Light", "rank": 2}, {"name": "MetroNet Communications", "rank": 3}]}, "Clinical Communications & Paging": {"tech": [{"name": "ReachAll Mass Notification", "rank": 1}, {"name": "OneID SSO & MFA", "rank": 2}, {"name": "NetPulse Network Monitoring", "rank": 3}], "thirdparty": [{"name": "MetroNet Communications", "rank": 1}, {"name": "Vantage Medical Devices", "rank": 2}]}, "Cybersecurity Operations": {"tech": [{"name": "ShieldSIEM Security Analytics", "rank": 1}, {"name": "OneID SSO & MFA", "rank": 2}, {"name": "DeskFlow ITSM", "rank": 3}, {"name": "NetPulse Network Monitoring", "rank": 4}], "thirdparty": [{"name": "Sentinel Managed Security", "rank": 1}]}, "IT Service Desk & End-User Computing": {"tech": [{"name": "DeskFlow ITSM", "rank": 1}, {"name": "OneID SSO & MFA", "rank": 2}], "thirdparty": [{"name": "Reliant Staffing Group", "rank": 1}]}, "Data Backup & Recovery": {"tech": [{"name": "VaultSync Backup & Restore", "rank": 1}, {"name": "SkyVault Cloud Hosting", "rank": 2}, {"name": "DeskFlow ITSM", "rank": 3}], "thirdparty": [{"name": "SkyVault Cloud Inc.", "rank": 1}]}, "Enterprise Applications (ERP / HCM)": {"tech": [{"name": "CoreERP Finance & HR", "rank": 1}, {"name": "OneID SSO & MFA", "rank": 2}, {"name": "SkyVault Cloud Hosting", "rank": 3}, {"name": "IntegraLink Interface Engine", "rank": 4}], "thirdparty": [{"name": "SkyVault Cloud Inc.", "rank": 1}]}, "IT Asset & Configuration Management": {"tech": [{"name": "DeskFlow ITSM", "rank": 1}, {"name": "CoreERP Finance & HR", "rank": 2}], "thirdparty": []}, "IT Architecture & Strategy": {"tech": [{"name": "InsightBI Analytics", "rank": 1}, {"name": "DeskFlow ITSM", "rank": 2}], "thirdparty": []}, "Emergent Care Authorization": {"tech": [{"name": "ClaimBridge Core Admin", "rank": 1}, {"name": "AuthPoint UM Platform", "rank": 2}, {"name": "ContactOne Call Center Platform", "rank": 3}, {"name": "IntegraLink Interface Engine", "rank": 4}], "thirdparty": [{"name": "ClearPath Clearinghouse", "rank": 1}, {"name": "PayerLink EDI Services", "rank": 2}]}, "Urgent Pharmacy Prior Authorization": {"tech": [{"name": "ClaimBridge Core Admin", "rank": 1}, {"name": "AuthPoint UM Platform", "rank": 2}, {"name": "ContactOne Call Center Platform", "rank": 3}], "thirdparty": [{"name": "NationalRx PBM", "rank": 1}, {"name": "ClearPath Clearinghouse", "rank": 2}]}, "Member Services (urgent inquiries)": {"tech": [{"name": "ContactOne Call Center Platform", "rank": 1}, {"name": "ClaimBridge Core Admin", "rank": 2}, {"name": "CareLink Patient Portal", "rank": 3}], "thirdparty": [{"name": "LinguaCall Interpretation Services", "rank": 1}, {"name": "PayerLink EDI Services", "rank": 2}]}, "Utilization Management": {"tech": [{"name": "AuthPoint UM Platform", "rank": 1}, {"name": "ClaimBridge Core Admin", "rank": 2}, {"name": "ContactOne Call Center Platform", "rank": 3}, {"name": "InsightBI Analytics", "rank": 4}], "thirdparty": [{"name": "ClearPath Clearinghouse", "rank": 1}]}, "Claims Intake & Initial Processing": {"tech": [{"name": "ClaimBridge Core Admin", "rank": 1}, {"name": "IntegraLink Interface Engine", "rank": 2}, {"name": "InsightBI Analytics", "rank": 3}], "thirdparty": [{"name": "ClearPath Clearinghouse", "rank": 1}, {"name": "PayerLink EDI Services", "rank": 2}]}, "Care Coordination (high-risk members)": {"tech": [{"name": "AuthPoint UM Platform", "rank": 1}, {"name": "CareLink Patient Portal", "rank": 2}, {"name": "MediCore EHR", "rank": 3}], "thirdparty": [{"name": "LinguaCall Interpretation Services", "rank": 1}]}, "Full Claims Adjudication": {"tech": [{"name": "ClaimBridge Core Admin", "rank": 1}, {"name": "InsightBI Analytics", "rank": 2}, {"name": "IntegraLink Interface Engine", "rank": 3}], "thirdparty": [{"name": "ClearPath Clearinghouse", "rank": 1}, {"name": "PayerLink EDI Services", "rank": 2}]}, "Appeals & Grievances": {"tech": [{"name": "ClaimBridge Core Admin", "rank": 1}, {"name": "AuthPoint UM Platform", "rank": 2}, {"name": "ContactOne Call Center Platform", "rank": 3}], "thirdparty": [{"name": "ClearPath Clearinghouse", "rank": 1}]}, "Actuarial & Product Pricing": {"tech": [{"name": "InsightBI Analytics", "rank": 1}, {"name": "ClaimBridge Core Admin", "rank": 2}, {"name": "CoreERP Finance & HR", "rank": 3}], "thirdparty": []}, "Crisis Communications & Media Relations": {"tech": [{"name": "ReachAll Mass Notification", "rank": 1}, {"name": "CareLink Patient Portal", "rank": 2}], "thirdparty": [{"name": "MetroNet Communications", "rank": 1}]}, "Facilities & Utilities Management": {"tech": [{"name": "BuildingOps Building Management", "rank": 1}, {"name": "DeskFlow ITSM", "rank": 2}, {"name": "ReachAll Mass Notification", "rank": 3}], "thirdparty": [{"name": "Commonwealth Power & Light", "rank": 1}, {"name": "BeaconFM Facilities Services", "rank": 2}]}, "Patient Access (registration & scheduling)": {"tech": [{"name": "MediCore EHR", "rank": 1}, {"name": "CareLink Patient Portal", "rank": 2}, {"name": "ContactOne Call Center Platform", "rank": 3}, {"name": "IntegraLink Interface Engine", "rank": 4}], "thirdparty": [{"name": "LinguaCall Interpretation Services", "rank": 1}, {"name": "ClearPath Clearinghouse", "rank": 2}]}, "Clinical Supply Distribution": {"tech": [{"name": "StockRoom Inventory Management", "rank": 1}, {"name": "CoreERP Finance & HR", "rank": 2}, {"name": "MediCore EHR", "rank": 3}], "thirdparty": [{"name": "MedSupply Logistics", "rank": 1}, {"name": "RxDirect Pharmaceutical Distribution", "rank": 2}]}, "Payroll & Benefits Administration": {"tech": [{"name": "CoreERP Finance & HR", "rank": 1}, {"name": "OneID SSO & MFA", "rank": 2}], "thirdparty": [{"name": "Reliant Staffing Group", "rank": 1}]}, "Supply Chain Ordering & Replenishment": {"tech": [{"name": "CoreERP Finance & HR", "rank": 1}, {"name": "StockRoom Inventory Management", "rank": 2}, {"name": "InsightBI Analytics", "rank": 3}], "thirdparty": [{"name": "MedSupply Logistics", "rank": 1}, {"name": "RxDirect Pharmaceutical Distribution", "rank": 2}]}, "Finance Operations (AP / AR)": {"tech": [{"name": "CoreERP Finance & HR", "rank": 1}, {"name": "InsightBI Analytics", "rank": 2}, {"name": "ClaimBridge Core Admin", "rank": 3}], "thirdparty": [{"name": "PayerLink EDI Services", "rank": 1}]}, "Regulatory & Compliance Reporting": {"tech": [{"name": "InsightBI Analytics", "rank": 1}, {"name": "MediCore EHR", "rank": 2}, {"name": "CoreERP Finance & HR", "rank": 3}], "thirdparty": [{"name": "Crestline Reference Laboratories", "rank": 1}]}, "Credentialing & Privileging": {"tech": [{"name": "CredentialPro", "rank": 1}, {"name": "MediCore EHR", "rank": 2}], "thirdparty": [{"name": "Reliant Staffing Group", "rank": 1}]}, "Financial Close & Reporting": {"tech": [{"name": "CoreERP Finance & HR", "rank": 1}, {"name": "InsightBI Analytics", "rank": 2}], "thirdparty": []}, "Marketing & Communications": {"tech": [{"name": "CareLink Patient Portal", "rank": 1}, {"name": "InsightBI Analytics", "rank": 2}], "thirdparty": [{"name": "MetroNet Communications", "rank": 1}]}, "Strategy & Transformation Office": {"tech": [{"name": "InsightBI Analytics", "rank": 1}, {"name": "DeskFlow ITSM", "rank": 2}, {"name": "CoreERP Finance & HR", "rank": 3}], "thirdparty": []}};
+const CBS_CATALOG = [{"name": "Emergency Department & Trauma", "group": "G1", "tier": "t1", "tierLabel": "< 4 Hours", "fa": "Hospital", "desc": "Receiving, stabilizing, and treating emergent and trauma patients around the clock."}, {"name": "ICU / Critical Care", "group": "G1", "tier": "t1", "tierLabel": "< 4 Hours", "fa": "Hospital", "desc": "Sustaining continuous monitoring and life support for the most critically ill patients."}, {"name": "Labor & Delivery", "group": "G1", "tier": "t1", "tierLabel": "< 4 Hours", "fa": "Hospital", "desc": "Managing obstetric care, delivery, and immediate maternal-newborn stabilization."}, {"name": "Operating Room (emergent cases)", "group": "G1", "tier": "t1", "tierLabel": "< 4 Hours", "fa": "Hospital", "desc": "Enabling unscheduled, time-critical surgical intervention with full perioperative support."}, {"name": "Blood Bank & Transfusion", "group": "G1", "tier": "t1", "tierLabel": "< 4 Hours", "fa": "Hospital", "desc": "Maintaining safe blood product inventory, crossmatching, and transfusion support."}, {"name": "Respiratory Therapy", "group": "G1", "tier": "t1", "tierLabel": "< 4 Hours", "fa": "Hospital", "desc": "Delivering ventilator management, oxygen therapy, and airway support."}, {"name": "Acute Stroke Response", "group": "G1", "tier": "t1", "tierLabel": "< 4 Hours", "fa": "Hospital", "desc": "Providing rapid stroke assessment, intervention, and acute neurological care."}, {"name": "Inpatient Nursing Units", "group": "G1", "tier": "t2", "tierLabel": "4 – 24 Hours", "fa": "Hospital", "desc": "Providing continuous bedside nursing care and monitoring for admitted patients."}, {"name": "Clinical Laboratory", "group": "G1", "tier": "t2", "tierLabel": "4 – 24 Hours", "fa": "Hospital", "desc": "Performing and resulting diagnostic testing that informs clinical decisions."}, {"name": "Inpatient Pharmacy", "group": "G1", "tier": "t2", "tierLabel": "4 – 24 Hours", "fa": "Hospital", "desc": "Dispensing, compounding, and managing medications for admitted patients."}, {"name": "Diagnostic Imaging", "group": "G1", "tier": "t2", "tierLabel": "4 – 24 Hours", "fa": "Hospital", "desc": "Performing and interpreting imaging studies for inpatient and emergent care."}, {"name": "Case Management & Discharge Planning", "group": "G1", "tier": "t2", "tierLabel": "4 – 24 Hours", "fa": "Hospital", "desc": "Coordinating care transitions and safe discharge across the continuum."}, {"name": "Ambulatory Surgery Centers", "group": "G1", "tier": "t3", "tierLabel": "1 – 3 Days", "fa": "Ambulatory", "desc": "Delivering same-day procedural and surgical care in outpatient settings."}, {"name": "Virtual Care / Telehealth", "group": "G1", "tier": "t3", "tierLabel": "1 – 3 Days", "fa": "Ambulatory", "desc": "Enabling remote clinical consultation and monitoring by video and phone."}, {"name": "Infection Prevention & Control", "group": "G1", "tier": "t3", "tierLabel": "1 – 3 Days", "fa": "Hospital", "desc": "Detecting and containing healthcare-associated infection risk enterprise-wide."}, {"name": "Home Health Services", "group": "G1", "tier": "t3", "tierLabel": "1 – 3 Days", "fa": "Post-Acute", "desc": "Delivering skilled clinical care to patients in the home setting."}, {"name": "Elective Surgery", "group": "G1", "tier": "t4", "tierLabel": "3 – 7 Days", "fa": "Hospital", "desc": "Managing planned, non-urgent surgical procedures and perioperative care."}, {"name": "Behavioral Health (routine)", "group": "G1", "tier": "t4", "tierLabel": "3 – 7 Days", "fa": "Ambulatory", "desc": "Delivering scheduled mental health and behavioral care services."}, {"name": "Clinical Research Programs", "group": "G1", "tier": "t5", "tierLabel": "> 1 Week", "fa": "Hospital", "desc": "Conducting clinical research operations, enrollment, and compliance."}, {"name": "Enterprise Command Center", "group": "G2", "tier": "t1", "tierLabel": "< 4 Hours", "fa": "Corporate", "desc": "Monitoring and directing enterprise response during disruptions and incidents."}, {"name": "EHR Platform Operations", "group": "G2", "tier": "t1", "tierLabel": "< 4 Hours", "fa": "Corporate", "desc": "Sustaining availability of the electronic health record and its interfaces."}, {"name": "Network & Connectivity", "group": "G2", "tier": "t1", "tierLabel": "< 4 Hours", "fa": "Corporate", "desc": "Operating the wired, wireless, and wide-area networks every digital service rides on."}, {"name": "Identity & Access Management", "group": "G2", "tier": "t1", "tierLabel": "< 4 Hours", "fa": "Corporate", "desc": "Running single sign-on, MFA, and directory services; without authentication, uptime is irrelevant."}, {"name": "Data Center & Cloud Hosting", "group": "G2", "tier": "t1", "tierLabel": "< 4 Hours", "fa": "Corporate", "desc": "Providing the compute, storage, and hosting that underpin every clinical and business system."}, {"name": "Clinical Communications & Paging", "group": "G2", "tier": "t2", "tierLabel": "4 – 24 Hours", "fa": "Corporate", "desc": "Operating secure messaging, paging, and nurse-call so clinicians can coordinate in real time."}, {"name": "Cybersecurity Operations", "group": "G2", "tier": "t2", "tierLabel": "4 – 24 Hours", "fa": "Corporate", "desc": "Monitoring, detecting, and responding to security threats across the enterprise."}, {"name": "IT Service Desk & End-User Computing", "group": "G2", "tier": "t2", "tierLabel": "4 – 24 Hours", "fa": "Corporate", "desc": "Supporting workstations, mobile devices, and break-fix before the next shift change."}, {"name": "Data Backup & Recovery", "group": "G2", "tier": "t2", "tierLabel": "4 – 24 Hours", "fa": "Corporate", "desc": "Executing backups and restores that protect against data loss."}, {"name": "Enterprise Applications (ERP / HCM)", "group": "G2", "tier": "t3", "tierLabel": "1 – 3 Days", "fa": "Corporate", "desc": "Supporting the finance, HR, and supply chain platform behind corporate operations."}, {"name": "IT Asset & Configuration Management", "group": "G2", "tier": "t4", "tierLabel": "3 – 7 Days", "fa": "Corporate", "desc": "Maintaining the CMDB, licensing, and hardware inventory that recovery planning relies on."}, {"name": "IT Architecture & Strategy", "group": "G2", "tier": "t5", "tierLabel": "> 1 Week", "fa": "Corporate", "desc": "Managing technology roadmaps, standards, and architecture reviews."}, {"name": "Emergent Care Authorization", "group": "G3", "tier": "t1", "tierLabel": "< 4 Hours", "fa": "Health Plan", "desc": "Providing immediate coverage determinations that enable emergent treatment."}, {"name": "Urgent Pharmacy Prior Authorization", "group": "G3", "tier": "t1", "tierLabel": "< 4 Hours", "fa": "Health Plan", "desc": "Adjudicating time-sensitive medication coverage approvals for urgent therapies."}, {"name": "Member Services (urgent inquiries)", "group": "G3", "tier": "t2", "tierLabel": "4 – 24 Hours", "fa": "Health Plan", "desc": "Responding to time-sensitive member questions on coverage and access."}, {"name": "Utilization Management", "group": "G3", "tier": "t2", "tierLabel": "4 – 24 Hours", "fa": "Health Plan", "desc": "Reviewing medical necessity and managing appropriate use of services."}, {"name": "Claims Intake & Initial Processing", "group": "G3", "tier": "t3", "tierLabel": "1 – 3 Days", "fa": "Health Plan", "desc": "Receiving, validating, and initiating adjudication of submitted claims."}, {"name": "Care Coordination (high-risk members)", "group": "G3", "tier": "t3", "tierLabel": "1 – 3 Days", "fa": "Health Plan", "desc": "Coordinating care for members with complex, high-risk needs."}, {"name": "Full Claims Adjudication", "group": "G3", "tier": "t4", "tierLabel": "3 – 7 Days", "fa": "Health Plan", "desc": "Processing claims through complete determination, pricing, and payment."}, {"name": "Appeals & Grievances", "group": "G3", "tier": "t4", "tierLabel": "3 – 7 Days", "fa": "Health Plan", "desc": "Adjudicating member and provider appeals within regulatory timelines."}, {"name": "Actuarial & Product Pricing", "group": "G3", "tier": "t5", "tierLabel": "> 1 Week", "fa": "Health Plan", "desc": "Modeling risk and setting rates that keep plan products financially sound."}, {"name": "Crisis Communications & Media Relations", "group": "G4", "tier": "t1", "tierLabel": "< 4 Hours", "fa": "Corporate", "desc": "Managing public information and media engagement during events."}, {"name": "Facilities & Utilities Management", "group": "G4", "tier": "t2", "tierLabel": "4 – 24 Hours", "fa": "Corporate", "desc": "Keeping power, utilities, and environmental systems running across sites."}, {"name": "Patient Access (registration & scheduling)", "group": "G4", "tier": "t2", "tierLabel": "4 – 24 Hours", "fa": "Corporate", "desc": "Managing registration, scheduling, and access to care across entry points."}, {"name": "Clinical Supply Distribution", "group": "G4", "tier": "t2", "tierLabel": "4 – 24 Hours", "fa": "Corporate", "desc": "Receiving, storing, and distributing clinical supplies to points of care."}, {"name": "Payroll & Benefits Administration", "group": "G4", "tier": "t3", "tierLabel": "1 – 3 Days", "fa": "Corporate", "desc": "Administering compensation, benefits, and payroll continuity."}, {"name": "Supply Chain Ordering & Replenishment", "group": "G4", "tier": "t3", "tierLabel": "1 – 3 Days", "fa": "Corporate", "desc": "Ordering and replenishing enterprise inventory to prevent shortages."}, {"name": "Finance Operations (AP / AR)", "group": "G4", "tier": "t3", "tierLabel": "1 – 3 Days", "fa": "Corporate", "desc": "Processing payables and receivables to sustain financial operations."}, {"name": "Regulatory & Compliance Reporting", "group": "G4", "tier": "t4", "tierLabel": "3 – 7 Days", "fa": "Corporate", "desc": "Preparing and submitting required regulatory and compliance reporting."}, {"name": "Credentialing & Privileging", "group": "G4", "tier": "t4", "tierLabel": "3 – 7 Days", "fa": "Corporate", "desc": "Verifying provider qualifications and managing clinical privileges."}, {"name": "Financial Close & Reporting", "group": "G4", "tier": "t4", "tierLabel": "3 – 7 Days", "fa": "Corporate", "desc": "Executing periodic accounting close, consolidation, and reporting."}, {"name": "Marketing & Communications", "group": "G4", "tier": "t5", "tierLabel": "> 1 Week", "fa": "Corporate", "desc": "Managing brand, campaigns, and consumer communications."}, {"name": "Strategy & Transformation Office", "group": "G4", "tier": "t5", "tierLabel": "> 1 Week", "fa": "Corporate", "desc": "Developing enterprise strategy and governing the transformation portfolio."}];
+/*__JS_CORE__*/
+/* ===== Locked configuration ===== */
+const TOOL_ID = 'BO2-CBS-DEPENDENCY-MAPPING';
+const STORE_KEY = 'erw-demo-bo2-v1';
+const GROUPS = [
+  {id:'G1',label:'Clinical',color:'#3a8d3f',colorD:'#2c6b30'},
+  {id:'G2',label:'IT / Cyber',color:'#c77d2e',colorD:'#9c6224'},
+  {id:'G3',label:'Health Plan',color:'#a8568f',colorD:'#7a3f6d'},
+  {id:'G4',label:'Back Office / Supply Chain',color:'#a96fd6',colorD:'#7e52a0'},
+];
+const LENSES = [
+  {code:'people',label:'People',hint:'Roles, teams, skills, and key individuals the service depends on.'},
+  {code:'process',label:'Process',hint:'Workflows, procedures, and operational steps the service depends on.'},
+  {code:'tech',label:'Technology',hint:'Applications, systems, infrastructure — plus identity/access and clinical devices, which fold into this lens.'},
+  {code:'facilities',label:'Facilities',hint:'Physical sites, power, utilities, and environmental systems the service depends on.'},
+  {code:'thirdparty',label:'Third Parties',hint:'External vendors, suppliers, and service providers the service depends on.'},
+];
+const PREFILLED_LENSES = {tech:1, thirdparty:1};
+
+/* ===== Session identity (hardening §1) ===== */
+const SESSION_START = new Date();
+let sessionStartISO = SESSION_START.toISOString();
+let sessionId = null;
+
+/* ===== Boundary helpers (hardening §3 — EXPORT ONLY, never on live input) ===== */
+function norm(s){return String(s==null?'':s).trim().replace(/\s+/g,' ');}
+function clean(s){return norm(s).replace(/[\u201C\u201D]/g,'"').replace(/[\u2018\u2019]/g,"'").replace(/\u00A0/g,' ');}
+function escapeMD(s){return clean(s).replace(/\|/g,'\\|');}
+/* esc() is for DOM innerHTML ONLY — never run on an export value */
+function esc(x){return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function slug(s){return clean(s).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'x';}
+
+function facil(){return document.getElementById('facilitator').value;}
+function facilSlug(){const f=clean(facil()).replace(/[^A-Za-z0-9_-]/g,'');return f||'unnamed';}
+function ensureSessionId(){ if(sessionId) return sessionId; sessionId = sessionStartISO.replace(/[:.]/g,'-')+'_'+facilSlug(); saveSession(); return sessionId; }
+function stamp(){return new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');}
+
+/* ===== Lookups ===== */
+function group(id){return GROUPS.find(g=>g.id===id)||{id:id,label:id,color:'#888',colorD:'#666'};}
+function grpLabel(id){return group(id).label;}
+function lens(code){return LENSES.find(l=>l.code===code)||{code:code,label:code,hint:''};}
+function lensLabel(code){return lens(code).label;}
+function catalogOf(name){return CBS_CATALOG.find(c=>c.name===name)||null;}
+function confLabel(v){return v===true?'yes':(v===false?'no':'unreviewed');}
+
+/* ===== State ===== */
+let candidates = [];          /* picklist pool: {name,group,tierLabel,fa,desc} */
+const scoped = {};            /* id -> cbs object */
+const scopedOrder = [];       /* sidebar order */
+let activeId = null;
+const activityLog = [];
+const undoStack = [];
+let unsavedSinceExport = false;
+let editingDesc = false;
+let isUndoing = false;
+
+/* ===== Logging (hardening §2 — route EVERY new event through logEvent) ===== */
+function logEvent(ev){ ev.seq = activityLog.length + 1; if(!ev.ts) ev.ts = new Date(); activityLog.push(ev); }
+
+/* ===== CBS / dependency construction ===== */
+function mintDepId(cbs, lensCode, name){
+  const base = cbs.id + '::' + lensCode + '_' + slug(name);
+  const existing = new Set();
+  LENSES.forEach(L=>cbs.deps[L.code].forEach(d=>existing.add(d.id)));
+  let id = base, n = 1;
+  while(existing.has(id)){ n++; id = base + '_' + n; }
+  return id;
+}
+function makeDep(cbs, lensCode, name, origin, rank){
+  return {id:mintDepId(cbs,lensCode,name), name:name, origin:origin, confirmed:null, rank:(rank==null?null:rank), note:''};
+}
+function buildCbs(name, groupId, tierLabel){
+  const cat = catalogOf(name);
+  const gid = groupId || (cat?cat.group:'G4');
+  const cbs = {
+    id:'svc_'+slug(name), name:name, group:gid,
+    tierLabel:(tierLabel||(cat?cat.tierLabel:'')), fa:(cat?cat.fa:''), desc:(cat?cat.desc:''),
+    deps:{people:[],process:[],tech:[],facilities:[],thirdparty:[]}
+  };
+  const pp = PREPOP[name];
+  if(pp){
+    (pp.tech||[]).forEach(d=>cbs.deps.tech.push(makeDep(cbs,'tech',d.name,'prepopulated',d.rank)));
+    (pp.thirdparty||[]).forEach(d=>cbs.deps.thirdparty.push(makeDep(cbs,'thirdparty',d.name,'prepopulated',d.rank)));
+  }
+  return cbs;
+}
+function scopeCbs(name, groupId, opts){
+  opts = opts || {};
+  const id = 'svc_'+slug(name);
+  if(scoped[id]){ if(!opts.silent) setActive(id); return scoped[id]; }
+  const cbs = buildCbs(name, groupId, opts.tierLabel);
+  scoped[cbs.id] = cbs; scopedOrder.push(cbs.id);
+  if(!opts.silent){
+    const n = cbs.deps.tech.length + cbs.deps.thirdparty.length;
+    logEvent({type:'scope', cbs:cbs.name, detail:'in scope · '+grpLabel(cbs.group)+' · '+n+' dependencies pre-filled'});
+  }
+  return cbs;
+}
+function descopeCbs(id){
+  const cbs = scoped[id]; if(!cbs) return;
+  logEvent({type:'scope', cbs:cbs.name, detail:'removed from scope'});
+  delete scoped[id];
+  const i = scopedOrder.indexOf(id); if(i!==-1) scopedOrder.splice(i,1);
+  if(activeId===id) activeId = scopedOrder[0] || null;
+}
+
+/* ===== Persistence (hardening §1 + §8 non-blocking banner) ===== */
+function saveSession(){
+  try{
+    const data = {
+      version:1, tool:TOOL_ID, sessionId, sessionStart:sessionStartISO,
+      facilitator:facil(), unsaved:unsavedSinceExport,
+      candidates, scoped, scopedOrder, activeId,
+      log:activityLog.map(e=>({...e, ts:e.ts.toISOString()})),
+      savedAt:new Date().toISOString()
+    };
+    localStorage.setItem(STORE_KEY, JSON.stringify(data));
+    document.getElementById('saveBanner').classList.remove('show');
+  }catch(err){
+    document.getElementById('saveBanner').classList.add('show');
+  }
+}
+function loadSession(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY); if(!raw) return false;
+    const s = JSON.parse(raw);
+    if(s.sessionStart) sessionStartISO = s.sessionStart;
+    if(s.sessionId) sessionId = s.sessionId;
+    candidates = s.candidates || [];
+    if(s.scoped){ Object.keys(s.scoped).forEach(id=>{ scoped[id] = s.scoped[id]; }); }
+    (s.scopedOrder||[]).forEach(id=>{ if(scoped[id]) scopedOrder.push(id); });
+    Object.keys(scoped).forEach(id=>{ if(scopedOrder.indexOf(id)===-1) scopedOrder.push(id); });
+    activeId = s.activeId || scopedOrder[0] || null;
+    (s.log||[]).forEach(e=>activityLog.push({...e, ts:new Date(e.ts)})); /* raw push preserves saved seq */
+    if(s.facilitator) document.getElementById('facilitator').value = s.facilitator;
+    if(s.unsaved) unsavedSinceExport = true;
+    return {savedAt:s.savedAt, count:Object.keys(scoped).length};
+  }catch(err){ return false; }
+}
+function wipeSession(){ try{ localStorage.removeItem(STORE_KEY); }catch(e){} }
+if(location.search.indexOf('fresh=1')!==-1) wipeSession();
+function markUnsaved(){ unsavedSinceExport=true; document.getElementById('logBtn').classList.add('unsaved'); saveSession(); }
+function clearUnsaved(){ unsavedSinceExport=false; document.getElementById('logBtn').classList.remove('unsaved'); saveSession(); }
+/*__JS_RENDER__*/
+/* ===== Rendering ===== */
+function setActive(id){ activeId = id; editingDesc=false; renderAll(); }
+function activeCbs(){ return activeId ? scoped[activeId] : null; }
+function depCounts(cbs){
+  let total=0, conf=0;
+  LENSES.forEach(L=>cbs.deps[L.code].forEach(d=>{ total++; if(d.confirmed===true) conf++; }));
+  return {total, conf};
+}
+function depScaffold(cbs, lensCode, d){
+  if(d.origin==='prepopulated'){
+    if(lensCode==='tech') return 'Application / technology dependency surfaced from the client service-to-application matrix (confidence rank '+d.rank+'). Validate whether '+cbs.name+' truly relies on this during a disruption, and capture coverage or caveats.';
+    if(lensCode==='thirdparty') return 'Third-party dependency surfaced from the client service-to-vendor matrix (confidence rank '+d.rank+'). Validate whether '+cbs.name+' truly relies on this during a disruption, and capture coverage or caveats.';
+    return 'Dependency surfaced from client data for validation.';
+  }
+  return 'Dependency raised in the workshop for '+cbs.name+' ('+lensLabel(lensCode)+' lens). Capture why it matters and any coverage or caveats.';
+}
+
+function buildSidebar(){
+  const list = document.getElementById('cbsList');
+  const ids = scopedOrder.filter(id=>scoped[id]);
+  if(!ids.length){
+    list.innerHTML = '<div class="sbempty">No services in scope yet. Load the BO1 export to carry forward deep-dive selections, or use <strong>+ Add</strong> to bring a service in.</div>';
+    document.getElementById('sbProg').textContent='';
+    return;
+  }
+  const filt = document.getElementById('grpFilter').value;
+  let html='', shown=0;
+  GROUPS.forEach(g=>{
+    if(filt!=='all' && g.id!==filt) return;
+    const inG = ids.map(id=>scoped[id]).filter(c=>c.group===g.id);
+    if(!inG.length) return;
+    html += '<div class="sbgroup" style="border-left-color:'+g.color+';color:'+g.color+'">'+esc(g.label)+'</div>';
+    inG.forEach(c=>{
+      const k = depCounts(c);
+      const act = (c.id===activeId) ? ' active' : '';
+      shown++;
+      html += '<button class="cbsitem'+act+'" data-cbs="'+esc(c.id)+'" style="border-left-color:'+g.color+'">'+
+        '<span class="cbn">'+esc(c.name)+'</span>'+
+        '<span class="cbmeta"><span>'+k.conf+'/'+k.total+' confirmed</span>'+(c.tierLabel?'<span>'+esc(c.tierLabel)+'</span>':'')+'</span>'+
+        '</button>';
+    });
+  });
+  list.innerHTML = html;
+  if(filt!=='all'){
+    document.getElementById('sbProg').textContent = 'Focus: '+grpLabel(filt)+' · showing '+shown+' of '+ids.length+' services';
+  } else {
+    const totalDeps = ids.reduce((a,id)=>a+depCounts(scoped[id]).total,0);
+    document.getElementById('sbProg').textContent = ids.length+' service'+(ids.length===1?'':'s')+' · '+totalDeps+' dependencies mapped';
+  }
+}
+
+function descBlock(cbs){
+  if(editingDesc){
+    return '<div class="descedit"><textarea id="descEdit" rows="3" placeholder="EY-drafted service description (editable)…">'+esc(cbs.desc||'')+'</textarea>'+
+      '<div class="descedit-actions"><button class="tb" id="descCancel">Cancel</button><button class="tb primary" id="descSave">Save description</button></div></div>';
+  }
+  if(cbs.desc) return '<div class="ctxdesc" id="ctxDesc" title="EY-drafted description — click to edit"><span class="editpencil">edit</span>'+esc(cbs.desc)+'</div>';
+  return '<div class="ctxdesc empty" id="ctxDesc" title="Click to add a description">+ Add a service description</div>';
+}
+function renderContext(){
+  const cbs = activeCbs();
+  const ctx = document.getElementById('context');
+  if(!cbs){
+    ctx.style.borderTopColor='var(--muted)';
+    ctx.innerHTML = '<div class="ctxname">No service selected</div><div class="ctxdesc">Load the BO1 export or add a service to begin mapping its dependencies across the five lenses.</div>';
+    return;
+  }
+  const g = group(cbs.group);
+  ctx.style.borderTopColor = g.color;
+  ctx.innerHTML =
+    '<div class="ctxtop">'+
+      '<div><div class="ctxname">'+esc(cbs.name)+'</div>'+
+        '<div class="ctxchips">'+
+          '<span class="pill" style="background:'+g.color+'">'+esc(g.label)+'</span>'+
+          (cbs.tierLabel?'<span class="pill tier">Recovery: '+esc(cbs.tierLabel)+'</span>':'')+
+          (cbs.fa?'<span class="pill fa" title="Operational area / care setting this service runs in (from the client inventory). Not an owner.">Functional area: '+esc(cbs.fa)+'</span>':'')+
+        '</div>'+
+      '</div>'+
+      '<div class="ctxright"><button class="descope" data-descope="'+esc(cbs.id)+'">Remove from scope</button></div>'+
+    '</div>'+
+    descBlock(cbs);
+}
+
+function depChipHtml(d, lensCode){
+  const cls = d.confirmed===true?' confirmed':(d.confirmed===false?' rejected':'');
+  const origCls = d.origin==='manual'?'manual':'pre';
+  const origTxt = d.origin==='manual'?'ADDED':('Matrix rank '+(d.rank!=null?d.rank:'—'));
+  const matrixSrc = lensCode==='tech'?'service-to-application matrix':(lensCode==='thirdparty'?'service-to-vendor matrix':'client dependency matrix');
+  const origTitle = d.origin==='manual'?'Added live in the workshop':('Pre-filled from the '+matrixSrc+'; the client ranked this #'+(d.rank!=null?d.rank:'?')+' for this service (1 = primary / most-central). EY hypothesis — confirm or reject.');
+  const noteFlag = (d.note&&d.note.trim())?'<span class="noteflag" title="Has facilitator notes">✎</span>':'';
+  return '<div class="depchip'+cls+'" data-dep="'+esc(d.id)+'" data-lens="'+lensCode+'">'+
+    '<button class="depdel" data-del="'+esc(d.id)+'" data-lens="'+lensCode+'" title="Delete dependency">×</button>'+
+    '<span class="depname" data-open="'+esc(d.id)+'" data-lens="'+lensCode+'">'+esc(d.name)+'</span>'+
+    '<div class="deptags"><span class="orig '+origCls+'" title="'+esc(origTitle)+'">'+esc(origTxt)+'</span>'+noteFlag+
+      '<span class="cbtns">'+
+        '<button class="cact yes'+(d.confirmed===true?' on':'')+'" data-act="confirm" data-dep="'+esc(d.id)+'" data-lens="'+lensCode+'" title="Confirm dependency">✓</button>'+
+        '<button class="cact no'+(d.confirmed===false?' on':'')+'" data-act="reject" data-dep="'+esc(d.id)+'" data-lens="'+lensCode+'" title="Not a dependency">✗</button>'+
+      '</span>'+
+    '</div></div>';
+}
+function renderLenses(){
+  const grid = document.getElementById('lensGrid');
+  const cbs = activeCbs();
+  if(!cbs){ grid.innerHTML=''; return; }
+  let html='';
+  LENSES.forEach(L=>{
+    const deps = cbs.deps[L.code];
+    const pre = PREFILLED_LENSES[L.code];
+    const hintShort = L.hint.length>54?L.hint.slice(0,52)+'…':L.hint;
+    html += '<div class="lenscol" data-lens="'+L.code+'">'+
+      '<div class="lenshead"><div class="lt">'+esc(L.label)+
+        (pre?'<span class="prepick" title="Pre-filled from the client matrix as an EY hypothesis to validate">PRE-FILLED</span>':'')+
+        '<span class="lcount">'+deps.length+'</span></div>'+
+        '<div class="lc" title="'+esc(L.hint)+'">'+esc(hintShort)+'</div>'+
+      '</div><div class="lensbody">';
+    if(!deps.length){
+      html += '<div class="lensempty">'+(pre?'No items carried from client data.':'No dependencies captured yet.')+'<br>Add what the room raises below.</div>';
+    } else {
+      const ordered = deps.slice().sort((a,b)=>{ const am=a.origin==='manual',bm=b.origin==='manual'; if(am!==bm) return am?1:-1; const ar=a.rank==null?Infinity:a.rank, br=b.rank==null?Infinity:b.rank; return ar-br; });
+      ordered.forEach(d=>{ html += depChipHtml(d, L.code); });
+    }
+    html += '<div class="addrow"><input type="text" placeholder="Add a '+esc(L.label.toLowerCase())+' dependency…" data-add="'+L.code+'" maxlength="120"/><button data-addbtn="'+L.code+'">Add</button></div>';
+    html += '</div></div>';
+  });
+  grid.innerHTML = html;
+}
+
+function renderLog(){
+  const body = document.getElementById('logBody');
+  document.getElementById('logCount').textContent = '('+activityLog.filter(e=>e.type==='confirm'||e.type==='reject').length+')';
+  if(!activityLog.length){ body.innerHTML='<div class="logempty">No decisions yet. Confirm, reject, or add a dependency and it is recorded with a sequence number and timestamp.</div>'; return; }
+  body.innerHTML='';
+  activityLog.slice().reverse().forEach(e=>{
+    if(e.type==='mark'){ const m=document.createElement('div'); m.className='logmark'; m.textContent='⚑ '+e.label; body.appendChild(m); return; }
+    const d=document.createElement('div'); d.className='logentry '+e.type;
+    const seq='<span class="le-seq">#'+e.seq+'</span>';
+    const t='<div class="le-time">'+e.ts.toLocaleTimeString()+'</div>';
+    const where = (e.cbs?esc(e.cbs):'')+(e.lens?' · '+esc(lensLabel(e.lens)):'');
+    if(e.type==='reset') d.innerHTML=seq+'<div class="le-svc">↻ Process reset selected</div><div class="le-move">Board cleared to EY starting hypothesis · recording continued</div>'+t;
+    else if(e.type==='scope') d.innerHTML=seq+'<div class="le-svc">◑ '+esc(e.cbs)+'</div><div class="le-move">'+esc(e.detail||'')+'</div>'+t;
+    else if(e.type==='add') d.innerHTML=seq+'<div class="le-svc">+ '+esc(e.dependency)+'</div><div class="le-move">added · '+where+'</div>'+t;
+    else if(e.type==='del') d.innerHTML=seq+'<div class="le-svc">× '+esc(e.dependency)+'</div><div class="le-move">removed · '+where+'</div>'+t;
+    else if(e.type==='note') d.innerHTML=seq+'<div class="le-svc">✎ '+esc(e.dependency)+'</div><div class="le-move">'+esc(e.detail||'')+' · '+where+'</div>'+t;
+    else if(e.type==='confirm') d.innerHTML=seq+'<div class="le-svc">✓ '+esc(e.dependency)+'</div><div class="le-move">confirmed · '+where+'</div>'+t;
+    else if(e.type==='reject') d.innerHTML=seq+'<div class="le-svc">✗ '+esc(e.dependency)+'</div><div class="le-move">not a dependency · '+where+'</div>'+t;
+    else d.innerHTML=seq+'<div class="le-svc">'+esc(e.dependency||e.cbs||'')+'</div><div class="le-move">'+esc(e.detail||'')+'</div>'+t;
+    body.appendChild(d);
+  });
+}
+function renderAll(){ buildSidebar(); renderContext(); renderLenses(); renderLog(); updateUndoBtn(); }
+/*__JS_WIRING__*/
+/* ===== Dependency actions ===== */
+function setConfirm(lensCode, depId, value){
+  const cbs=activeCbs(); if(!cbs) return;
+  const d=cbs.deps[lensCode].find(x=>x.id===depId); if(!d) return;
+  const prev=d.confirmed;
+  const next=(prev===value)?null:value;
+  undoStack.push({kind:'confirm',cbsId:cbs.id,lensCode,depId,prev});
+  d.confirmed=next;
+  const type = next===true?'confirm':(next===false?'reject':'unreview');
+  logEvent({type,cbs:cbs.name,lens:lensCode,dependency:d.name,detail:(next===null?'review cleared':'')});
+  markUnsaved(); renderAll();
+}
+function addDep(lensCode, rawName){
+  const cbs=activeCbs(); if(!cbs) return;
+  const name=String(rawName||'').replace(/[<>]/g,'').trim();
+  if(!name) return;
+  if(cbs.deps[lensCode].some(d=>d.name.toLowerCase()===name.toLowerCase())) return;
+  const d=makeDep(cbs,lensCode,name,'manual',null);
+  cbs.deps[lensCode].push(d);
+  undoStack.push({kind:'add',cbsId:cbs.id,lensCode,depId:d.id});
+  logEvent({type:'add',cbs:cbs.name,lens:lensCode,dependency:name});
+  markUnsaved(); renderAll();
+}
+function deleteDep(lensCode, depId){
+  const cbs=activeCbs(); if(!cbs) return;
+  const arr=cbs.deps[lensCode]; const idx=arr.findIndex(d=>d.id===depId); if(idx<0) return;
+  const d=arr[idx];
+  if(!confirm('Remove "'+d.name+'" from '+lensLabel(lensCode)+'? This is recorded in the log.')) return;
+  arr.splice(idx,1);
+  undoStack.push({kind:'del',cbsId:cbs.id,lensCode,dep:d,index:idx});
+  logEvent({type:'del',cbs:cbs.name,lens:lensCode,dependency:d.name});
+  markUnsaved(); renderAll();
+}
+function doUndo(){
+  const u=undoStack.pop(); if(!u) return;
+  const cbs=scoped[u.cbsId]; if(!cbs){ updateUndoBtn(); return; }
+  if(u.kind==='confirm'){
+    const d=cbs.deps[u.lensCode].find(x=>x.id===u.depId); if(d){ d.confirmed=u.prev;
+      logEvent({type:'note',cbs:cbs.name,lens:u.lensCode,dependency:d.name,detail:'undo → '+confLabel(u.prev)}); }
+  } else if(u.kind==='add'){
+    const arr=cbs.deps[u.lensCode]; const i=arr.findIndex(x=>x.id===u.depId);
+    if(i>=0){ const nm=arr[i].name; arr.splice(i,1); logEvent({type:'del',cbs:cbs.name,lens:u.lensCode,dependency:nm,detail:'(undo add)'}); }
+  } else if(u.kind==='del'){
+    cbs.deps[u.lensCode].splice(Math.min(u.index,cbs.deps[u.lensCode].length),0,u.dep);
+    logEvent({type:'add',cbs:cbs.name,lens:u.lensCode,dependency:u.dep.name,detail:'(undo delete)'});
+  }
+  if(activeId!==u.cbsId) activeId=u.cbsId;
+  markUnsaved(); renderAll();
+}
+function updateUndoBtn(){ const b=document.getElementById('undoBtn'); if(b) b.disabled=undoStack.length===0; }
+function doReset(){
+  const ids=scopedOrder.filter(id=>scoped[id]);
+  if(!ids.length) return;
+  if(!confirm('Reset all dependency review to the EY starting hypothesis?\n\nManual dependencies are removed and confirmations / notes cleared, but the decision log is KEPT. A "Process reset selected" entry is recorded and capture continues.')) return;
+  ids.forEach(id=>{ const cbs=scoped[id]; const fresh=buildCbs(cbs.name,cbs.group); cbs.deps=fresh.deps; });
+  undoStack.length=0;
+  logEvent({type:'reset'});
+  markUnsaved(); renderAll();
+}
+
+/* ===== Modals ===== */
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+let depTarget=null;
+function openDep(lensCode, depId){
+  const cbs=activeCbs(); if(!cbs) return;
+  const d=cbs.deps[lensCode].find(x=>x.id===depId); if(!d) return;
+  depTarget={lensCode,depId};
+  document.getElementById('depTitle').textContent=d.name;
+  document.getElementById('depMeta').textContent=cbs.name+' · '+lensLabel(lensCode)+' · '+(d.origin==='manual'?'added in workshop':'from client matrix'+(d.rank!=null?' (rank '+d.rank+')':''))+' · '+confLabel(d.confirmed);
+  document.getElementById('depScaffold').textContent=depScaffold(cbs,lensCode,d);
+  document.getElementById('depNameInput').value=d.name;
+  document.getElementById('depNotes').value=d.note||'';
+  document.getElementById('depModal').classList.add('open');
+  document.getElementById('depNotes').focus();
+}
+function saveDep(){
+  if(!depTarget){ closeModal('depModal'); return; }
+  const cbs=activeCbs(); const d=cbs?cbs.deps[depTarget.lensCode].find(x=>x.id===depTarget.depId):null;
+  if(!d){ closeModal('depModal'); return; }
+  const newName=document.getElementById('depNameInput').value.replace(/[<>]/g,'').trim()||d.name;
+  const newNote=document.getElementById('depNotes').value.trim();
+  if(newName!==d.name){ const old=d.name; d.name=newName; logEvent({type:'note',cbs:cbs.name,lens:depTarget.lensCode,dependency:newName,detail:'renamed from "'+old+'"'}); }
+  if((d.note||'')!==newNote){ d.note=newNote; logEvent({type:'note',cbs:cbs.name,lens:depTarget.lensCode,dependency:d.name,detail:newNote?'notes updated':'notes cleared'}); }
+  markUnsaved(); closeModal('depModal'); renderAll();
+}
+function openCbsModal(){
+  const pool=(candidates.length?candidates:CBS_CATALOG);
+  let html='<option value="">— select a service —</option>';
+  GROUPS.forEach(g=>{
+    const inG=pool.filter(c=>(c.group||(catalogOf(c.name)||{}).group||'G4')===g.id);
+    if(!inG.length) return;
+    html+='<optgroup label="'+esc(g.label)+'">'+inG.map(c=>{
+      const inScope=!!scoped['svc_'+slug(c.name)];
+      return '<option value="'+esc(c.name)+'">'+esc(c.name)+(inScope?'  · in scope':'')+'</option>';
+    }).join('')+'</optgroup>';
+  });
+  document.getElementById('cbsPick').innerHTML=html;
+  document.getElementById('cbsNewName').value='';
+  document.getElementById('cbsModal').classList.add('open');
+}
+
+/* ===== BO1 export ingest ===== */
+function groupIdFromValue(v){ v=norm(v); if(!v) return ''; const i=GROUPS.find(g=>g.id===v); if(i) return i.id; const l=GROUPS.find(g=>g.label.toLowerCase()===v.toLowerCase()); return l?l.id:''; }
+function parseCSV(text){
+  const rows=[]; let row=[], field='', i=0, inQ=false;
+  while(i<text.length){
+    const c=text[i];
+    if(inQ){ if(c==='"'){ if(text[i+1]==='"'){field+='"';i+=2;continue;} inQ=false;i++;continue; } field+=c;i++;continue; }
+    if(c==='"'){inQ=true;i++;continue;}
+    if(c===','){row.push(field);field='';i++;continue;}
+    if(c==='\r'){i++;continue;}
+    if(c==='\n'){row.push(field);rows.push(row);row=[];field='';i++;continue;}
+    field+=c;i++;
+  }
+  row.push(field); rows.push(row);
+  return rows;
+}
+function ingestCsv(text){
+  const rows=parseCSV(text);
+  let fi=-1; for(let i=0;i<rows.length;i++){ if(rows[i].some(c=>/FINAL STATE/i.test(c))){fi=i;break;} }
+  const start=fi>=0?fi+1:0; let hi=-1;
+  for(let i=start;i<rows.length;i++){ if(rows[i].some(c=>/cbs id/i.test(c)||/critical business service/i.test(c))){hi=i;break;} }
+  if(hi<0) return [];
+  const hdr=rows[hi].map(h=>norm(h).toLowerCase());
+  const col=(...names)=>{ for(const n of names){ const idx=hdr.indexOf(n); if(idx!==-1) return idx; } return -1; };
+  const ci={ name:col('critical business service','cbs','service'), group:col('group'), tier:col('final tier','tier'),
+    fa:col('functional area'), desc:col('description'),
+    dd:col('deep-dive selected','deep dive selected','deep-dive','deep dive') };
+  const out=[];
+  for(let i=hi+1;i<rows.length;i++){
+    const r=rows[i]; if(!r||r.every(c=>norm(c)==='')) break;
+    const name=ci.name>=0?norm(r[ci.name]):''; if(!name) continue;
+    const ddv=ci.dd>=0?norm(r[ci.dd]):'';
+    out.push({ name, group:groupIdFromValue(ci.group>=0?r[ci.group]:''), tierLabel:ci.tier>=0?norm(r[ci.tier]):'',
+      fa:ci.fa>=0?norm(r[ci.fa]):'', desc:ci.desc>=0?norm(r[ci.desc]):'',
+      deepdive:/^(yes|y|true|1|x|✓)$/i.test(ddv) });
+  }
+  return out;
+}
+function ingestJson(j){
+  const rows=Array.isArray(j.final_state)?j.final_state:[]; const seen={}; const out=[];
+  rows.forEach(r=>{
+    const name=norm(r.cbs||r.name||r.critical_business_service||r.cbs_name||''); if(!name||seen[name]) return; seen[name]=1;
+    out.push({ name, group:groupIdFromValue(r.group||''), tierLabel:norm(r.tier||r.final_tier||''),
+      fa:norm(r.functional_area||r.fa||''), desc:norm(r.description||r.desc||''),
+      deepdive:/^(yes|y|true|1|x|✓)$/i.test(norm(r.deep_dive_selected||r.deep_dive||r.deepDiveSelected||'')) });
+  });
+  return out;
+}
+function ingestBO1(text){
+  text=String(text||'').replace(/^\uFEFF/,'');
+  let cands=null;
+  try{ const j=JSON.parse(text); if(j&&Array.isArray(j.final_state)) cands=ingestJson(j); }catch(e){}
+  if(!cands) cands=ingestCsv(text);
+  if(!cands.length){ alert('No services found in that file. Expecting a BO1 export with a FINAL STATE section (CSV) or a final_state array (JSON).'); return; }
+  Object.keys(scoped).forEach(id=>delete scoped[id]); scopedOrder.length=0; activeId=null;
+  const seen={}; candidates=[];
+  cands.forEach(c=>{ if(seen[c.name]) return; seen[c.name]=1; const cat=catalogOf(c.name);
+    candidates.push({name:c.name, group:c.group||(cat?cat.group:'G4'), tierLabel:c.tierLabel||(cat?cat.tierLabel:''),
+      fa:c.fa||(cat?cat.fa:''), desc:c.desc||(cat?cat.desc:''), deepdive:!!c.deepdive}); });
+  const flagged=candidates.filter(c=>c.deepdive);
+  const toScope=flagged.length?flagged:candidates;
+  toScope.forEach(c=>scopeCbs(c.name,c.group,{silent:true,tierLabel:c.tierLabel}));
+  activeId=scopedOrder[0]||null;
+  logEvent({type:'mark',label:'Loaded BO1 export · '+candidates.length+' carried forward'+(flagged.length?' · narrowed to '+flagged.length+' deep-dive selections':' · all scoped (no deep-dive flags in file)')});
+  markUnsaved(); renderAll();
+}
+
+/* ===== Event wiring ===== */
+document.getElementById('grpFilter').addEventListener('change',()=>{
+  const fv=document.getElementById('grpFilter').value;
+  if(fv!=='all'){ const cur=activeId?scoped[activeId]:null; if(!cur||cur.group!==fv){ const first=scopedOrder.map(id=>scoped[id]).find(c=>c&&c.group===fv); if(first) activeId=first.id; } }
+  renderAll();
+});
+document.getElementById('loadBo1').addEventListener('change',function(e){
+  const f=e.target.files&&e.target.files[0]; if(!f) return;
+  const rd=new FileReader(); rd.onload=()=>{ ingestBO1(rd.result); e.target.value=''; }; rd.onerror=()=>alert('Could not read that file.'); rd.readAsText(f);
+});
+document.getElementById('addCbsBtn').addEventListener('click',openCbsModal);
+document.getElementById('addCbsBtn2').addEventListener('click',openCbsModal);
+document.getElementById('cbsCancel').addEventListener('click',()=>closeModal('cbsModal'));
+document.getElementById('cbsModal').addEventListener('click',e=>{if(e.target.id==='cbsModal')closeModal('cbsModal');});
+document.getElementById('cbsConfirm').addEventListener('click',()=>{
+  const pick=document.getElementById('cbsPick').value;
+  const newName=document.getElementById('cbsNewName').value.replace(/[<>]/g,'').trim();
+  if(pick){ const id='svc_'+slug(pick); if(scoped[id]){ setActive(id); } else { scopeCbs(pick); setActive(id); markUnsaved(); } }
+  else if(newName){ scopeCbs(newName,document.getElementById('cbsNewGrp').value); setActive('svc_'+slug(newName)); markUnsaved(); }
+  else { alert('Pick a service from the list, or type a new one below.'); return; }
+  closeModal('cbsModal');
+});
+document.getElementById('resetBtn').addEventListener('click',doReset);
+document.getElementById('undoBtn').addEventListener('click',doUndo);
+document.getElementById('snapBtn').addEventListener('click',()=>{
+  const label=prompt('Label this round / checkpoint (e.g. "End of Clinical breakout"):','');
+  if(label===null||!label.trim()) return;
+  logEvent({type:'mark',label:label.trim()}); markUnsaved(); renderLog();
+});
+document.getElementById('presentBtn').addEventListener('click',()=>{document.body.classList.add('present');if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{});});
+document.getElementById('exitPresent').addEventListener('click',()=>{document.body.classList.remove('present');if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(()=>{});});
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ document.body.classList.remove('present'); closeModal('cbsModal'); closeModal('depModal'); }});
+const drawer=document.getElementById('logDrawer');
+document.getElementById('logBtn').addEventListener('click',()=>drawer.classList.toggle('open'));
+document.getElementById('logClose').addEventListener('click',()=>drawer.classList.remove('open'));
+document.getElementById('facilitator').addEventListener('input',()=>saveSession());
+
+document.getElementById('cbsList').addEventListener('click',e=>{ const it=e.target.closest('.cbsitem'); if(it){ setActive(it.dataset.cbs); const cx=document.getElementById('context'); if(cx&&cx.scrollIntoView) cx.scrollIntoView({behavior:'smooth',block:'start'}); } });
+document.getElementById('context').addEventListener('click',e=>{
+  if(e.target.closest('#ctxDesc')){ editingDesc=true; renderContext(); const ta=document.getElementById('descEdit'); if(ta){ ta.focus(); try{ta.setSelectionRange(ta.value.length,ta.value.length);}catch(_){} } return; }
+  if(e.target.id==='descSave'){ const cbs=activeCbs(); const ta=document.getElementById('descEdit'); if(cbs&&ta){ const v=ta.value.replace(/[<>]/g,'').trim(); if(v!==(cbs.desc||'')){ cbs.desc=v; logEvent({type:'note',cbs:cbs.name,detail:'service description edited'}); markUnsaved(); } } editingDesc=false; renderAll(); return; }
+  if(e.target.id==='descCancel'){ editingDesc=false; renderContext(); return; }
+  const b=e.target.closest('[data-descope]'); if(b){ const cbs=scoped[b.dataset.descope]; if(cbs&&confirm('Remove "'+cbs.name+'" from scope? Its dependency mapping is discarded; the log is kept.')){ descopeCbs(b.dataset.descope); markUnsaved(); renderAll(); } }
+});
+document.getElementById('lensGrid').addEventListener('click',e=>{
+  const cact=e.target.closest('.cact'); if(cact){ setConfirm(cact.dataset.lens,cact.dataset.dep,cact.dataset.act==='confirm'); return; }
+  const del=e.target.closest('[data-del]'); if(del){ deleteDep(del.dataset.lens,del.dataset.del); return; }
+  const addb=e.target.closest('[data-addbtn]'); if(addb){ const inp=addb.closest('.addrow').querySelector('input[data-add]'); addDep(addb.dataset.addbtn,inp.value); return; }
+  const op=e.target.closest('[data-open]'); if(op){ openDep(op.dataset.lens,op.dataset.open); return; }
+});
+document.getElementById('lensGrid').addEventListener('keydown',e=>{
+  const inp=e.target.closest('input[data-add]'); if(inp&&e.key==='Enter'){ e.preventDefault(); addDep(inp.dataset.add,inp.value); }
+});
+document.getElementById('depCancel').addEventListener('click',()=>closeModal('depModal'));
+document.getElementById('depModal').addEventListener('click',e=>{if(e.target.id==='depModal')closeModal('depModal');});
+document.getElementById('depSave').addEventListener('click',saveDep);
+/*__JS_EXPORT__*/
+/* ===== Exports (hardening §4/§6/§7 — clean() at the boundary, esc() never used here) ===== */
+function download(filename,text,type){const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);}
+function csvRow(r){return r.map(c=>'"'+String(c==null?'':c).replace(/"/g,'""')+'"').join(',');}
+function eachDep(fn){ scopedOrder.filter(id=>scoped[id]).forEach(id=>{ const cbs=scoped[id]; LENSES.forEach(L=>{ cbs.deps[L.code].forEach(d=>fn(cbs,L.code,d)); }); }); }
+
+document.getElementById('exportCsv').addEventListener('click',()=>{
+  const sid=ensureSessionId(); const now=new Date().toISOString();
+  const rows=[];
+  rows.push(['VERSION','1']);                 /* banner: raw, not clean()'d */
+  rows.push(['TOOL',TOOL_ID]);
+  rows.push(['SESSION_ID',sid]);
+  rows.push(['SESSION_START',sessionStartISO]);
+  rows.push(['FACILITATOR',clean(facil())||'unnamed']);
+  rows.push(['EXPORTED_AT',now]);
+  rows.push(['']);
+  rows.push(['Seq','SessionID','Tool','Timestamp','Type','CBS','Lens','Dependency','Detail','Facilitator']);
+  activityLog.forEach(e=>{
+    rows.push([ e.seq, sid, TOOL_ID, e.ts.toISOString(), String(e.type||'').toUpperCase(),
+      clean(e.cbs||''), e.lens?clean(lensLabel(e.lens)):'', clean(e.dependency||''),
+      clean(e.detail||e.label||''), clean(facil()) ]);
+  });
+  rows.push(['']);
+  rows.push(['--- FINAL STATE (CBS Dependency Mapping) ---']);
+  rows.push(['dep.id','CBS ID','CBS','Group','Lens','Dependency','Origin','Confirmed','Rank','Facilitator Notes','SessionID']);
+  eachDep((cbs,lc,d)=>{
+    rows.push([ d.id, cbs.id, clean(cbs.name), clean(grpLabel(cbs.group)), clean(lensLabel(lc)),
+      clean(d.name), (d.origin||'manual'), confLabel(d.confirmed), (d.rank==null?'':d.rank),
+      clean(d.note||''), sid ]);
+  });
+  download('HealthCo-BO2-dependency-map_'+stamp()+'.csv', rows.map(csvRow).join('\n'), 'text/csv');
+  clearUnsaved();
+});
+
+document.getElementById('exportJson').addEventListener('click',()=>{
+  const sid=ensureSessionId(); const now=new Date().toISOString();
+  const final_state=[];
+  eachDep((cbs,lc,d)=>{ final_state.push({
+    dep_id:d.id, cbs_id:cbs.id, cbs:clean(cbs.name), group:clean(grpLabel(cbs.group)),
+    tier:clean(cbs.tierLabel||''), functional_area:clean(cbs.fa||''),
+    lens:clean(lensLabel(lc)), lens_code:lc, dependency:clean(d.name),
+    origin:(d.origin||'manual'), confirmed:confLabel(d.confirmed), rank:(d.rank==null?null:d.rank),
+    facilitator_notes:clean(d.note||'') }); });
+  const out={ tool:TOOL_ID, version:'1', session_id:sid, session_start:sessionStartISO, exported_at:now,
+    facilitator:clean(facil())||'unnamed',
+    groups:GROUPS.map(g=>({id:g.id,label:clean(g.label),color:g.color})),
+    lenses:LENSES.map(l=>({code:l.code,label:clean(l.label)})),
+    activity_log:activityLog.map(e=>({ seq:e.seq, ts:e.ts.toISOString(), type:e.type,
+      cbs:clean(e.cbs||''), lens:e.lens?clean(lensLabel(e.lens)):'', dependency:clean(e.dependency||''),
+      detail:clean(e.detail||e.label||'') })),
+    final_state };
+  download('HealthCo-BO2-dependency-map_'+stamp()+'.json', JSON.stringify(out,null,2), 'application/json');
+  clearUnsaved();
+});
+
+document.getElementById('exportMd').addEventListener('click',()=>{
+  const sid=ensureSessionId();
+  let md='# HealthCo (Demo) — CBS Dependency Mapping: Workshop Readout\n\n';
+  md+='**Tool:** BO2 · CBS Dependency Mapping (EY facilitation instrument)  \n';
+  md+='**Session ID:** '+escapeMD(sid)+'  \n';
+  md+='**Facilitator / session:** '+(escapeMD(facil())||'(unnamed)')+'  \n';
+  md+='**Exported:** '+new Date().toLocaleString()+'  \n';
+  md+='> Pre-filled Technology and Third-Party items are an EY working hypothesis from the client matrices, for validation — not final guidance.\n\n';
+  const ids=scopedOrder.filter(id=>scoped[id]);
+  md+='## Services in scope ('+ids.length+')\n\n';
+  ids.forEach(id=>{ const cbs=scoped[id]; const k=depCounts(cbs);
+    md+='### '+escapeMD(cbs.name)+'\n';
+    md+='_'+escapeMD(grpLabel(cbs.group))+(cbs.tierLabel?' · recovery '+escapeMD(cbs.tierLabel):'')+(cbs.fa?' · '+escapeMD(cbs.fa):'')+'_  \n';
+    md+='Dependencies: '+k.total+' ('+k.conf+' confirmed)  \n\n';
+    LENSES.forEach(L=>{ const arr=cbs.deps[L.code]; if(!arr.length) return;
+      md+='**'+escapeMD(L.label)+'**\n\n| Dependency | Status | Origin | Rank | Notes |\n|---|---|---|---|---|\n';
+      arr.forEach(d=>{ md+='| '+escapeMD(d.name)+' | '+confLabel(d.confirmed)+' | '+(d.origin||'manual')+' | '+(d.rank==null?'':d.rank)+' | '+escapeMD(d.note||'')+' |\n'; });
+      md+='\n';
+    });
+  });
+  md+='## Full decision log\n\n| Seq | Time | Type | CBS | Lens | Dependency | Detail |\n|---|---|---|---|---|---|---|\n';
+  activityLog.forEach(e=>{ md+='| '+e.seq+' | '+e.ts.toLocaleTimeString()+' | '+(e.type||'')+' | '+escapeMD(e.cbs||'')+' | '+(e.lens?escapeMD(lensLabel(e.lens)):'')+' | '+escapeMD(e.dependency||'')+' | '+escapeMD(e.detail||e.label||'')+' |\n'; });
+  md+='\n---\n';
+  md+='\n*EY · Enterprise Resilience Workout · Demonstration build — fictional data*\n';
+  download('HealthCo-BO2-dependency-readout_'+stamp()+'.md', md, 'text/markdown');
+  clearUnsaved();
+});
+
+/* ===== Init ===== */
+const restored=loadSession();
+if(!restored){
+  candidates=CBS_CATALOG.map(c=>({name:c.name,group:c.group,tierLabel:c.tierLabel,fa:c.fa,desc:c.desc,deepdive:false}));
+  CBS_CATALOG.forEach(c=>scopeCbs(c.name,c.group,{silent:true}));   /* standalone default: all services in scope, pre-populated */
+  activeId=scopedOrder[0]||null;
+}
+renderAll();
+if(restored){
+  const when=restored.savedAt?new Date(restored.savedAt).toLocaleString():'';
+  document.getElementById('restoreInfo').textContent=(when?'last saved '+when:'saved session found')+(restored.count?' · '+restored.count+' service'+(restored.count===1?'':'s')+' in scope':'');
+  document.getElementById('restoreBar').classList.add('show');
+  if(unsavedSinceExport) document.getElementById('logBtn').classList.add('unsaved');
+}
+document.getElementById('restoreDismiss').addEventListener('click',()=>document.getElementById('restoreBar').classList.remove('show'));
+</script>
+</body>
+</html>

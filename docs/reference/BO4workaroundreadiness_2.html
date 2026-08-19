@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<!--
+ENTERPRISE RESILIENCE WORKOUT — TOOL 4 of 4: WORKAROUND & RECOVERY ASSESSMENT
+EY facilitation instrument. rev 2026-07-27: GENERIC DEMO BUILD (fictional HealthCo dataset; no client data),
+Reset button + ?fresh=1 escape hatch, hardened BO2/BO3 import dispatch, CSV guidance on load.
+Ingests BO3 risk register (preferred) or BO2 dependency map. Importers only WIDEN contracts — never rename or remove fields.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EY · Enterprise Resilience Workout — Workaround &amp; Recovery Assessment (Demo)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap');
+
+  :root{
+    --teal:#00708c;        /* suite accent */
+    --teal-dk:#004c5f;
+    --teal-lt:#e4f1f4;
+    --ink:#1c2b30;
+    --muted:#5d7077;
+    --line:#d4dde0;
+    --line2:#b9c8cc;
+    --paper:#f7f9fa;
+    --t1:#c0392b;  /* <4hr  */
+    --t2:#e67e22;  /* 4-24  */
+    --t3:#d4a017;  /* 1-3d  */
+    --t4:#2e8b8b;  /* 3-7d  */
+    --t5:#5b7c99;  /* >1wk  */
+    --g1:#3a8d3f; --g2:#c77d2e; --g3:#a8568f; --g4:#a96fd6;   /* CBS group accents */
+    --reject:#c0392b; --warn:#b9770e; --confirm:#2e6f54;       /* risk-band accents */
+    --red:#c0392b;   --red-bg:#fbe9e7;   --red-line:#e6b0a8;
+    --amber:#8a5a00; --amber-bg:#fff3d6; --amber-line:#e8c97a;
+    --green:#2e6f54; --green-bg:#e3f1ea; --green-line:#a8d4bf;
+    --slate:#5d7077; --slate-bg:#eef2f3; --slate-line:#d4dde0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Archivo',system-ui,sans-serif;color:var(--ink);background:var(--paper);line-height:1.42;-webkit-font-smoothing:antialiased}
+  .serif{font-family:'Source Serif 4',Georgia,serif}
+  :focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+
+  /* ---------- Header ---------- */
+  header{background:linear-gradient(120deg,var(--teal-dk),var(--teal));color:#fff;position:sticky;top:0;z-index:40;
+    box-shadow:0 2px 12px rgba(0,40,52,.22)}
+  .htop{display:flex;align-items:flex-start;gap:16px;padding:22px 34px 18px;flex-wrap:wrap}
+  .brandrow{display:flex;align-items:center;gap:14px}
+  .mark{width:38px;height:38px;border-radius:9px;background:#fff;display:grid;place-items:center;font-weight:800;
+    color:var(--teal-dk);font-size:15px;letter-spacing:-.5px;flex:none}
+  h1{font-size:22px;font-weight:800;letter-spacing:-.3px;line-height:1.1}
+  .sub{font-family:'Source Serif 4',Georgia,serif;font-size:13.5px;opacity:.88;margin-top:3px}
+  .sub b{color:#fff;font-weight:600}
+
+  .hmeta{margin-left:auto;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+  .field{display:flex;flex-direction:column;gap:3px}
+  .field label{font-size:9.5px;text-transform:uppercase;letter-spacing:.09em;opacity:.7}
+  .field input{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);color:#fff;border-radius:6px;
+    padding:5px 9px;font-size:12.5px;font-family:inherit;min-width:118px}
+  .field input::placeholder{color:rgba(255,255,255,.6)}
+  .field input:focus{outline:none;background:rgba(255,255,255,.22);border-color:#fff}
+  .field input[type=date]{color-scheme:dark}
+  .prog{text-align:right;padding-left:6px;border-left:1px solid rgba(255,255,255,.22)}
+  .prog .n{font-size:22px;font-weight:800;line-height:1}
+  .prog .n small{font-weight:500;opacity:.7;font-size:13px}
+  .prog .l{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;opacity:.7;margin-top:2px}
+
+  /* ---------- Toolbar ---------- */
+  .toolbar{display:flex;align-items:center;gap:8px;padding:9px 34px;background:#fff;border-bottom:1px solid var(--line);
+    flex-wrap:wrap}
+  .toolbar .grp{display:flex;align-items:center;gap:7px}
+  .toolbar .sep{width:1px;height:22px;background:var(--line);margin:0 3px}
+  .flt{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .toolbar select,.toolbar input[type=search]{font-family:inherit;font-size:12.5px;padding:6px 9px;border:1px solid var(--line);
+    border-radius:6px;background:#fff;color:var(--ink)}
+  .toolbar input[type=search]{min-width:170px}
+  .btn{font-family:inherit;font-size:12.5px;padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:#fff;
+    color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .12s,border-color .12s}
+  .btn:hover{background:#f0f4f5;border-color:#b9c8cc}
+  .btn.primary{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600}
+  .btn.primary:hover{background:var(--teal-dk);border-color:var(--teal-dk)}
+  .btn.pulse{animation:pulse 1.7s ease-in-out infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,112,140,0)}50%{box-shadow:0 0 0 4px rgba(0,112,140,.28)}}
+
+  /* ---------- Hypothesis banner ---------- */
+  .hypo{display:flex;gap:11px;align-items:flex-start;margin:14px 34px 0;background:var(--teal-lt);
+    border-left:4px solid var(--teal);border-radius:0 8px 8px 0;padding:11px 15px;font-size:12.5px;color:var(--teal-dk)}
+  .hypo .tag{flex:none;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;background:var(--teal);
+    color:#fff;padding:3px 8px;border-radius:5px;margin-top:1px}
+  .hypo b{font-weight:700}
+
+  /* ---------- Gap summary ---------- */
+  .gapbar{display:flex;gap:10px;margin:14px 34px 0;flex-wrap:wrap}
+  .gapcard{flex:1;min-width:150px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 15px;
+    display:flex;align-items:center;gap:12px;box-shadow:0 1px 2px rgba(28,43,48,.04)}
+  .gapcard .dot{width:11px;height:11px;border-radius:50%;flex:none}
+  .gapcard .n{font-size:24px;font-weight:800;line-height:1}
+  .gapcard .t{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-top:3px}
+  .dot.red{background:var(--red)} .dot.amber{background:var(--amber)} .dot.green{background:var(--green)} .dot.slate{background:var(--slate-line)}
+
+  /* ---------- Board ---------- */
+  main{padding:16px 34px 60px;max-width:1500px;margin:0 auto}
+  .pillar{background:#fff;border:1px solid var(--line);border-radius:11px;margin-bottom:15px;overflow:hidden;
+    box-shadow:0 1px 2px rgba(28,43,48,.04)}
+  .pillar-head{display:flex;align-items:center;gap:11px;padding:13px 18px;cursor:pointer;border-bottom:1px solid var(--line);
+    border-left:5px solid var(--teal)}
+  .pillar-head:hover{background:#fafcfc}
+  .pillar.collapsed .pillar-head{border-bottom:none}
+  .pillar.collapsed .pillar-body{display:none}
+  .chev{color:var(--muted);font-size:12px;transition:transform .15s}
+  .pillar.collapsed .chev{transform:rotate(-90deg)}
+  .pillar-head h2{font-size:15.5px;font-weight:700;letter-spacing:-.2px}
+  .count{font-size:11.5px;color:var(--muted);background:var(--slate-bg);border:1px solid var(--line);padding:2px 9px;border-radius:20px}
+  .pillar-mini{margin-left:auto;display:flex;gap:6px}
+  .mini{display:inline-flex;align-items:center;font-size:10.5px;padding:2px 8px;border-radius:20px;border:1px solid;font-weight:700}
+  .mini.red{color:var(--red);background:var(--red-bg);border-color:var(--red-line)}
+  .mini.amber{color:var(--amber);background:var(--amber-bg);border-color:var(--amber-line)}
+  .mini.green{color:var(--green);background:var(--green-bg);border-color:var(--green-line)}
+  .mini.slate{color:var(--slate);background:var(--slate-bg);border-color:var(--slate-line)}
+
+  table{width:100%;border-collapse:collapse}
+  thead th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:9px 12px;
+    border-bottom:1px solid var(--line);background:#fbfcfc;font-weight:700;white-space:nowrap}
+  thead th.ctr{text-align:center}
+  tbody td{padding:9px 12px;border-bottom:1px solid #eef2f3;vertical-align:middle}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#fafcfc}
+  .dep-name{font-weight:600;font-size:13.5px;display:block}
+  .dep-cbs{display:block;font-size:11.5px;color:var(--muted);margin-top:1px}
+  .dep-name[contenteditable]:focus,.dep-cbs[contenteditable]:focus{outline:none;background:#fffce8;border-radius:3px;
+    box-shadow:0 0 0 2px rgba(212,160,23,.3)}
+
+  .yn{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .yn button{border:none;background:#fff;padding:5px 12px;font-size:12px;cursor:pointer;font-family:inherit;color:var(--muted);
+    font-weight:700;transition:background .1s,color .1s}
+  .yn button+button{border-left:1px solid var(--line)}
+  .yn button:hover{background:#f0f4f5}
+  .yn button.y.on{background:var(--green-bg);color:var(--green)}
+  .yn button.n.on{background:var(--red-bg);color:var(--red)}
+  .moot-note{font-size:11px;color:var(--muted);font-style:italic}
+
+  select.sustain{font-family:inherit;font-size:12.5px;padding:5px 9px;border:1px solid var(--line);border-radius:7px;
+    background:#fff;color:var(--ink);cursor:pointer;min-width:132px;border-left-width:5px}
+  select.sustain.unset{color:var(--muted)}
+
+  .status{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:20px;
+    border:1px solid;cursor:default;white-space:nowrap;position:relative}
+  .status .sd{width:7px;height:7px;border-radius:50%}
+  .status.red{color:var(--red);background:var(--red-bg);border-color:var(--red-line)} .status.red .sd{background:var(--red)}
+  .status.amber{color:var(--amber);background:var(--amber-bg);border-color:var(--amber-line)} .status.amber .sd{background:var(--amber)}
+  .status.green{color:var(--green);background:var(--green-bg);border-color:var(--green-line)} .status.green .sd{background:var(--green)}
+  .status.slate{color:var(--slate);background:var(--slate-bg);border-color:var(--slate-line)} .status.slate .sd{background:var(--slate-line)}
+  .status .rtip{display:none;position:absolute;left:0;top:100%;z-index:50;margin-top:5px;width:230px;background:var(--ink);
+    color:#fff;font-size:10.5px;font-weight:400;line-height:1.4;padding:9px 11px;border-radius:7px;
+    box-shadow:0 6px 18px rgba(0,0,0,.28);text-transform:none;letter-spacing:0}
+  .status:hover .rtip{display:block}
+
+  .notes-in{width:100%;min-width:150px;border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-family:inherit;
+    font-size:12px;resize:vertical;min-height:32px;color:var(--ink);background:#fff}
+  .notes-in:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 2px rgba(0,112,140,.18)}
+
+  .row-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:5px}
+  .row-del:hover{background:var(--red-bg);color:var(--red)}
+  .add-row{padding:9px 12px}
+  .add-dep{background:none;border:1px dashed var(--line);color:var(--muted);border-radius:7px;padding:6px 12px;font-size:12.5px;
+    cursor:pointer;font-family:inherit;width:100%;text-align:left}
+  .add-dep:hover{border-color:var(--teal);color:var(--teal-dk);background:var(--teal-lt)}
+
+  /* ---------- Drawer ---------- */
+  .drawer-bg{position:fixed;inset:0;background:rgba(28,43,48,.42);z-index:60;display:none}
+  .drawer-bg.open{display:block}
+  .drawer{position:fixed;top:0;right:0;height:100%;width:440px;max-width:92vw;background:#fff;z-index:61;transform:translateX(100%);
+    transition:transform .22s ease;display:flex;flex-direction:column;box-shadow:-6px 0 24px rgba(0,0,0,.18)}
+  .drawer.open{transform:translateX(0)}
+  .drawer-head{padding:15px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;
+    background:var(--teal-lt)}
+  .drawer-head h3{font-family:'Source Serif 4',Georgia,serif;font-size:16px;color:var(--teal-dk)}
+  .drawer-body{overflow-y:auto;padding:4px 0;flex:1}
+  .logitem{padding:9px 18px;border-bottom:1px solid #eef2f3;font-size:12.5px}
+  .logitem .ts{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .logitem .tx{margin-top:2px;color:#2b3b40}
+  .logitem .tx b{color:var(--ink)}
+  .drawer-foot{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px}
+  .x-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);line-height:1}
+  .empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:13px}
+
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;
+    padding:11px 20px;border-radius:9px;font-size:13px;z-index:80;opacity:0;transition:all .2s;
+    box-shadow:0 6px 20px rgba(0,0,0,.25);pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  footer{padding:14px 34px 30px;color:var(--muted);font-size:11px;text-align:center}
+
+  body.present .grp.util,body.present .field.fac,body.present .hypo .ext,body.present .row-del,body.present .add-row{display:none}
+  body.present{font-size:15.5px}
+  body.present .dep-name{font-size:15px}
+  body.present main{max-width:1700px}
+
+  @media (max-width:900px){
+    .htop{flex-direction:column}.hmeta{margin-left:0}
+    thead{display:none}table,tbody,tr,td{display:block;width:100%}
+    tbody tr{border-bottom:1px solid var(--line);padding:6px 0}
+    tbody td{border:none;padding:5px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+    tbody td::before{content:attr(data-l);font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:.05em}
+    .notes-in{min-width:0}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  /* ---------- Dependency-type chip + filter ---------- */
+  .dep-type{font-family:inherit;font-size:10px;font-weight:700;line-height:1.3;padding:2px 8px;border-radius:20px;border:1px solid;
+    cursor:pointer;margin-top:5px;display:inline-block;max-width:160px;letter-spacing:.03em;-webkit-appearance:none;appearance:none}
+  .dep-type:focus{outline:none;box-shadow:0 0 0 2px rgba(0,112,140,.22)}
+  .dep-type.t-tech{color:#355c9c;background:#eef2fa;border-color:#c4d2ec}
+  .dep-type.t-thirdparty{color:#7a4a9e;background:#f2ecf9;border-color:#dccbe9}
+  .dep-type.t-people{color:#2b7d86;background:#e4f2f3;border-color:#b9dde0}
+  .dep-type.t-facilities{color:#8a6233;background:#f6eee2;border-color:#e6d4b8}
+  .dep-type.t-process{color:#515b8c;background:#eceef7;border-color:#cfd4ea}
+  .dep-type.untyped{color:var(--muted);background:#fff;border:1px dashed var(--line);font-weight:600}
+
+  /* ---------- BO2 RTO + BO3 SPoF / halts badges ---------- */
+  .cbs-rto{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.03em;padding:1px 7px;border-radius:20px;
+    border:1px solid;margin-top:5px;margin-right:5px;background:#fff;cursor:default}
+  .bo3-spof{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.04em;padding:1px 7px;border-radius:20px;
+    margin-top:5px;margin-right:5px;color:var(--red);background:var(--red-bg);border:1px solid var(--red-line);cursor:help}
+  .bo3-halts{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.03em;padding:1px 7px;border-radius:20px;
+    margin-top:5px;margin-right:5px;color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-line);cursor:help}
+
+  .btn.ghost{background:none;border-color:transparent;color:var(--muted);padding:6px 9px}
+  .btn.ghost:hover{background:#f0f4f5;color:var(--ink);border-color:transparent}
+  @media (max-width:900px){.dep-type{margin-top:4px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="htop">
+    <div class="brandrow">
+      <div class="mark">HC</div>
+      <div>
+        <h1>Workaround &amp; Recovery Assessment</h1>
+        <div class="sub"><b>Breakout 4</b> · Enterprise Resilience Workout · HealthCo — demo dataset (fictional client)</div>
+      </div>
+    </div>
+    <div class="hmeta">
+      <div class="field fac"><label for="m-fac">Facilitator</label><input id="m-fac" type="text" placeholder="Your name" autocomplete="off"></div>
+      <div class="field"><label for="m-date">Session date</label><input id="m-date" type="date"></div>
+      <div class="field"><label for="m-round">Round / breakout</label><input id="m-round" type="text" autocomplete="off"></div>
+      <div class="prog"><div class="n"><span id="p-done">0</span><small>/<span id="p-total">0</span></small></div><div class="l">Assessed</div></div>
+    </div>
+  </div>
+  <div class="toolbar">
+    <div class="grp"><span class="flt">Pillar</span><select id="f-pillar"><option value="">All</option></select></div>
+    <div class="grp"><span class="flt">Status</span>
+      <select id="f-status"><option value="">All</option><option value="red">Critical gaps</option>
+        <option value="amber">At risk</option><option value="green">Resilient</option><option value="slate">Not assessed</option></select></div>
+    <div class="grp"><span class="flt">Type</span><select id="f-type"></select></div>
+    <div class="grp"><span class="flt">Service (CBS)</span><select id="f-cbs"><option value="">All</option></select></div>
+    <div class="grp"><input id="f-search" type="search" placeholder="Search dependency…"></div>
+    <button class="btn ghost" id="b-clear" title="Reset all filters">Clear</button>
+    <div class="sep"></div>
+    <div class="grp util">
+      <button class="btn" id="b-add-pillar">+ Pillar</button>
+      <button class="btn" id="b-log">Activity log</button>
+      <button class="btn" id="b-present">Present</button>
+    </div>
+    <div class="sep"></div>
+    <div class="grp util">
+      <button class="btn" id="b-reset" title="Clear the board back to the starting scaffold (keeps the log)">Reset board</button>
+      <button class="btn" id="b-load" title="Load a BO4 save, or import a BO3 risk register (BO2 map also accepted)">Load file</button>
+      <button class="btn" id="b-save">Save file</button>
+      <button class="btn primary" id="b-export">Export log for AI</button>
+    </div>
+  </div>
+</header>
+
+<div class="hypo">
+  <span class="tag">EY hypothesis</span>
+  <span><b>Starting scaffold, not a finding.</b> EY pre-positioned the dependency list from the client's system and vendor matrices and leading practice so the room validates rather than starts blank — this demo build ships fictional HealthCo data. <span class="ext">Add, rename, or remove dependencies freely. The workaround status is for the client's service owners to answer — every move is captured in the log for AI synthesis afterward.</span></span>
+</div>
+
+<div class="gapbar" id="gapbar"></div>
+<main id="board"></main>
+<footer>Single-file facilitation tool · runs locally and offline · <b>Save file</b> to keep your work, then drop it in the team channel · <b>Export log for AI</b> produces the full capture for synthesis · EY · Enterprise Resilience Workout · Demonstration build — fictional data</footer>
+
+<div class="drawer-bg" id="drawer-bg"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head"><h3>Activity log</h3><button class="x-close" id="b-close-log">×</button></div>
+  <div class="drawer-body" id="log-body"></div>
+  <div class="drawer-foot">
+    <button class="btn" id="b-drawer-export" style="flex:1">Export log for AI</button>
+    <button class="btn" id="b-log-clear">Clear</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="file-in" accept=".json,.csv,application/json,text/csv" style="display:none">
+
+<script>
+"use strict";
+
+/* ---------- safe storage (works locally; no-ops in sandboxed iframes) ---------- */
+var store=(function(){
+  var mem={};
+  try{var k="__t"+Date.now();localStorage.setItem(k,"1");localStorage.removeItem(k);
+    return{get:function(k){try{return localStorage.getItem(k);}catch(e){return mem[k]||null;}},
+           set:function(k,v){try{localStorage.setItem(k,v);}catch(e){mem[k]=v;}}};}
+  catch(e){return{get:function(k){return mem[k]||null;},set:function(k,v){mem[k]=v;}};}
+})();
+var SKEY="erw-demo-bo4-v1";
+
+/* ---------- sustainability scale reuses the recovery-tier TIME BANDS as workaround durations
+   (how long a workaround holds) — RTO itself is never a scored input anywhere in the suite ---------- */
+var SUSTAIN=[
+  {v:"",  label:"— not set —",        c:"var(--line)"},
+  {v:"t1",label:"< 4 hrs (Tier 1)",   c:"var(--t1)"},
+  {v:"t2",label:"4–24 hrs (Tier 2)",  c:"var(--t2)"},
+  {v:"t3",label:"1–3 days (Tier 3)",  c:"var(--t3)"},
+  {v:"t4",label:"3–7 days (Tier 4)",  c:"var(--t4)"},
+  {v:"t5",label:"> 1 week (Tier 5)",  c:"var(--t5)"}
+];
+var WEAK={t1:true,t2:true}; // sustains < 24 hrs => flag
+
+/* ---------- dependency type taxonomy — aligned to BO2 "lenses" (the gold file) ----------
+   BO2 defines: people / process / tech / facilities / thirdparty. BO4 now uses the same
+   codes and labels so types round-trip between the breakouts. Edit here to add/remove. */
+var DEPTYPES=[
+  {v:"people",     label:"People"},
+  {v:"process",    label:"Process"},
+  {v:"tech",       label:"Technology"},
+  {v:"facilities", label:"Facilities"},
+  {v:"thirdparty", label:"Third Parties"}
+];
+function typeLabel(v){if(!v)return "untyped";for(var i=0;i<DEPTYPES.length;i++)if(DEPTYPES[i].v===v)return DEPTYPES[i].label;return "untyped";}
+function cbsList(){var seen={},out=[];
+  state.pillars.forEach(function(p){p.items.forEach(function(it){
+    (it.cbs||"").split(";").forEach(function(s){s=s.trim();if(!s)return;var k=s.toLowerCase();if(!seen[k]){seen[k]=1;out.push(s);}});});});
+  out.sort(function(a,b){return a.toLowerCase()<b.toLowerCase()?-1:1;});return out;}
+
+/* ---------- BO2 dependency-map import ----------
+   BO2 (CBS dependency mapping) exports {tool, groups, lenses, final_state:{...cells}}.
+   Each cell is one (CBS service × dependency) pair. We fold those into BO4's model:
+   group -> pillar, dependency -> name, cbs -> service supported, lens_code -> type,
+   facilitator_notes -> notes. Assessment fields start blank — the room answers them.
+   The CBS's RTO tier is preserved (read-only) so you can judge it against the
+   workaround's sustain; it is NOT auto-written into sustain (different question). */
+var BO2_TIER={"< 4 Hours":"t1","4 – 24 Hours":"t2","1 – 3 Days":"t3","3 – 7 Days":"t4","> 1 Week":"t5"};
+function tierShort(t){return {"< 4 Hours":"<4h","4 – 24 Hours":"4–24h","1 – 3 Days":"1–3d","3 – 7 Days":"3–7d","> 1 Week":">1wk"}[t]||t;}
+function isBO2(d){return !!(d&&(d.tool==="BO2-CBS-DEPENDENCY-MAPPING"||(d.final_state&&d.lenses&&d.groups&&!d.dependency_risk)));}
+function countCells(d){return d&&d.final_state?Object.keys(d.final_state).length:0;}
+function bo2ToState(d){
+  var fs=d.final_state||{};
+  var order=(d.groups||[]).map(function(g){return g.label;});
+  var byName={};
+  function pillar(name){name=name||"Ungrouped";if(!byName[name]){byName[name]={id:uid(),name:name,items:[],collapsed:true};}return byName[name];}
+  order.forEach(pillar); // seed pillars in BO2 group order
+  Object.keys(fs).forEach(function(k){var c=fs[k];if(!c)return;
+    pillar(c.group).items.push({
+      id:uid(),name:c.dependency||"(unnamed)",cbs:c.cbs||"",type:c.lens_code||"",
+      exists:null,documented:null,tested:null,sustain:"",notes:c.facilitator_notes||"",
+      bo2:{cbs_id:c.cbs_id,dep_id:c.dep_id,group:c.group,tier:c.tier,rto:BO2_TIER[c.tier]||"",
+           functional_area:c.functional_area,confirmed:c.confirmed,origin:c.origin,rank:c.rank}
+    });
+  });
+  var pillars=[];
+  order.forEach(function(n){if(byName[n])pillars.push(byName[n]);});
+  Object.keys(byName).forEach(function(n){if(order.indexOf(n)<0)pillars.push(byName[n]);});
+  pillars.forEach(function(p){p.items.sort(function(a,b){
+    var ca=(a.cbs||"").toLowerCase(),cb=(b.cbs||"").toLowerCase();if(ca<cb)return -1;if(ca>cb)return 1;
+    var ra=a.bo2&&a.bo2.rank!=null?a.bo2.rank:9999,rb=b.bo2&&b.bo2.rank!=null?b.bo2.rank:9999;if(ra!==rb)return ra-rb;
+    return (a.name||"").toLowerCase()<(b.name||"").toLowerCase()?-1:1;});});
+  return{meta:{facilitator:(d.facilitator&&d.facilitator!=="unnamed")?d.facilitator:"",
+               date:(d.exported_at||"").slice(0,10),
+               round:"Imported from BO2 dependency map"},
+         pillars:pillars,log:[]};
+}
+
+/* ---------- BO3 risk-register import (the intended upstream for BO4) ----------
+   BO3 (Dependency Risk & SPoF) exports {tool:"BO3-RISK", dependency_risk:[...clusters]}.
+   dependency_risk is the DEDUPED dependency list — one entry per dependency cluster with
+   risk_band, is_spof, service_halting_in, and the CBS services it supports. We fold those
+   into BO4: dependency -> name, lens_code -> type, cbs_confirmed -> services supported,
+   risk_band -> pillar (Critical → Low), is_spof / halts -> badges. Assessment fields start
+   blank: BO3 says where the risk is; BO4 answers whether a workaround exists. */
+var BO3_BANDS=[["critical","Critical risk"],["high","High risk"],["moderate","Moderate risk"],["low","Low risk"],["unrated","Unrated"]];
+function isBO3(d){return !!(d&&(d.tool==="BO3-RISK"||(d.dependency_risk&&d.lenses&&d.groups)));}
+function countDeps(d){return d&&d.dependency_risk?d.dependency_risk.length:0;}
+function bo3ToState(d){
+  var risks=d.dependency_risk||[];
+  var byBand={};
+  BO3_BANDS.forEach(function(o){byBand[o[0]]={id:uid(),name:o[1],items:[],collapsed:(o[0]!=="critical"&&o[0]!=="high")};});
+  risks.forEach(function(r){
+    var band=(r.risk_band||"").toLowerCase();if(!byBand[band])band="unrated";
+    var cbsArr=(r.cbs_confirmed&&r.cbs_confirmed.length)?r.cbs_confirmed:(r.cbs_unreviewed||[]);
+    byBand[band].items.push({
+      id:uid(),name:r.dependency||"(unnamed)",cbs:(cbsArr||[]).join("; "),type:r.lens_code||"",
+      exists:null,documented:null,tested:null,sustain:"",notes:r.note||"",
+      bo3:{band:band,spof:!!r.is_spof,spof_auto:!!r.spof_auto,halts:r.service_halting_in||0,
+           concentration:r.concentration,conc_potential:r.concentration_potential,primary:!!r.is_primary_system,
+           groups:(r.groups||[]),cascade:r.cascade||"",dep_ids:(r.dep_ids||[])}
+    });
+  });
+  var pillars=BO3_BANDS.map(function(o){return byBand[o[0]];}).filter(function(p){return p.items.length;});
+  pillars.forEach(function(p){p.items.sort(function(a,b){
+    var sa=a.bo3.spof?1:0,sb=b.bo3.spof?1:0;if(sa!==sb)return sb-sa;
+    if((b.bo3.halts||0)!==(a.bo3.halts||0))return (b.bo3.halts||0)-(a.bo3.halts||0);
+    return (a.name||"").toLowerCase()<(b.name||"").toLowerCase()?-1:1;});});
+  return{meta:{facilitator:(d.facilitator&&d.facilitator!=="unnamed")?d.facilitator:"",
+               date:(d.exported_at||"").slice(0,10),
+               round:"Imported from BO3 risk register"},
+         pillars:pillars,log:[]};
+}
+
+function seed(){
+  function it(name,cbs,type){return{id:uid(),name:name,cbs:cbs||"",type:type||"",exists:null,documented:null,tested:null,sustain:"",notes:""};}
+  return{
+    meta:{facilitator:"",date:"2026-07-27",round:"Day 2 · Breakout 4 — Workarounds"},
+    pillars:[
+      {id:uid(),name:"Technology",items:[
+        it("MediCore EHR","Acute clinical care; order entry","tech"),
+        it("ClaimBridge Core Admin","Claims adjudication","tech"),
+        it("TeleVisit Platform","Virtual care access","tech"),
+        it("RadView PACS","Imaging & diagnostics","tech"),
+        it("PharmaTrack Dispensing Cabinets","Medication dispensing","tech"),
+        it("CareLink Patient Portal","Patient access","tech"),
+        it("Network / WAN connectivity","All digital services","tech")]},
+      {id:uid(),name:"People",items:[
+        it("Bedside nursing coverage","Acute clinical care","people"),
+        it("Hospitalist / physician coverage","Acute clinical care","people"),
+        it("Pharmacist on-call coverage","Medication safety","people"),
+        it("Health plan member services staff","Member access","people"),
+        it("Incident command roles","Emergency response","people")]},
+      {id:uid(),name:"Process",items:[
+        it("Patient registration & admission","Patient throughput","process"),
+        it("Medication ordering & administration","Medication safety","process"),
+        it("Real-time prior authorization","Care access","process"),
+        it("Downtime documentation procedures","Continuity of care","process")]},
+      {id:uid(),name:"Facilities",items:[
+        it("Primary data center","All digital services","facilities"),
+        it("Emergency generator power","Life-safety infrastructure","facilities"),
+        it("Medical gas & oxygen supply","Life-safety infrastructure","facilities"),
+        it("Central sterile processing","Surgical services","facilities")]},
+      {id:uid(),name:"Third Parties",items:[
+        it("MediCore Systems Inc. (vendor support)","EHR continuity","thirdparty"),
+        it("RxDirect Pharmaceutical Distribution","Medication supply","thirdparty"),
+        it("Crestline Reference Laboratories","Reference diagnostics","thirdparty"),
+        it("ClearPath Clearinghouse","Claims processing","thirdparty"),
+        it("SkyVault Cloud Inc.","Hosted applications","thirdparty")]}
+    ],
+    log:[]
+  };
+}
+
+if(location.search.indexOf("fresh=1")!==-1){try{localStorage.removeItem(SKEY);}catch(e){}}
+var state=load()||seed();
+var filters={pillar:"",status:"",cbs:"",type:"",search:""};
+var dirty=false;
+
+function uid(){return "x"+Math.random().toString(36).slice(2,9);}
+function load(){try{var r=store.get(SKEY);return r?JSON.parse(r):null;}catch(e){return null;}}
+function save(){try{store.set(SKEY,JSON.stringify(state));}catch(e){}}
+
+function statusOf(it){
+  if(it.exists===null) return{k:"slate",label:"Not assessed",why:"No workaround answer captured yet."};
+  if(it.exists===false) return{k:"red",label:"Critical gap",why:"No workaround — single point of failure. Loss of this dependency stops the service with nothing to fall back on."};
+  var r=[];
+  if(it.documented!==true)r.push("not documented");
+  if(it.tested!==true)r.push("not tested");
+  if(it.sustain==="")r.push("sustainability not set");
+  else if(WEAK[it.sustain])r.push("sustains < 24 hrs");
+  if(r.length===0) return{k:"green",label:"Resilient",why:"Workaround exists, documented, tested, and holds beyond 24 hrs."};
+  return{k:"amber",label:"At risk",why:"Workaround exists but: "+r.join(", ")+"."};
+}
+
+function log(text){state.log.unshift({ts:new Date().toISOString(),text:text});if(state.log.length>800)state.log.length=800;markDirty();}
+function markDirty(){dirty=true;var b=document.getElementById("b-export");if(b)b.classList.add("pulse");}
+function clearDirty(){dirty=false;var b=document.getElementById("b-export");if(b)b.classList.remove("pulse");}
+
+/* ---------- render ---------- */
+var board=document.getElementById("board");
+function pillarVisible(p){return !filters.pillar||p.id===filters.pillar;}
+function itemVisible(it){
+  if(filters.status){if(statusOf(it).k!==filters.status)return false;}
+  if(filters.type){if((it.type||"")!==filters.type)return false;}
+  if(filters.cbs){var hit=false;(it.cbs||"").split(";").forEach(function(s){if(s.trim().toLowerCase()===filters.cbs)hit=true;});if(!hit)return false;}
+  if(filters.search){var q=filters.search.toLowerCase();
+    if((it.name||"").toLowerCase().indexOf(q)<0&&(it.cbs||"").toLowerCase().indexOf(q)<0)return false;}
+  return true;
+}
+function render(){
+  board.innerHTML="";
+  state.pillars.forEach(function(p){
+    if(!pillarVisible(p))return;
+    var vis=p.items.filter(itemVisible);
+    if((filters.status||filters.search||filters.cbs||filters.type)&&vis.length===0)return;
+    var counts={red:0,amber:0,green:0,slate:0};
+    p.items.forEach(function(it){counts[statusOf(it).k]++;});
+    var sec=document.createElement("section");sec.className="pillar"+(p.collapsed?" collapsed":"");
+    var head=document.createElement("div");head.className="pillar-head";
+    var gc={"Clinical":"var(--g1)","IT / Cyber":"var(--g2)","Health Plan":"var(--g3)","Back Office / Supply Chain":"var(--g4)",
+      "Critical risk":"var(--reject)","High risk":"var(--warn)","Moderate risk":"var(--t3)","Low risk":"var(--confirm)","Unrated":"var(--line2)"}[p.name];
+    if(gc)head.style.borderLeftColor=gc;
+    head.innerHTML='<span class="chev">▾</span>'+
+      '<h2 contenteditable="true" spellcheck="false">'+esc(p.name)+'</h2>'+
+      '<span class="count">'+(((filters.status||filters.search||filters.cbs||filters.type)&&vis.length!==p.items.length)?(vis.length+" / "+p.items.length):p.items.length)+'</span>'+
+      '<span class="pillar-mini">'+mini(counts.red,"red","critical")+mini(counts.amber,"amber","at risk")+
+      mini(counts.green,"green","resilient")+mini(counts.slate,"slate","open")+'</span>';
+    head.querySelector(".chev").addEventListener("click",function(e){e.stopPropagation();p.collapsed=!p.collapsed;render();});
+    head.addEventListener("click",function(e){if(e.target.classList.contains("chev")||e.target.tagName==="H2")return;p.collapsed=!p.collapsed;render();});
+    var h2=head.querySelector("h2");
+    h2.addEventListener("click",function(e){e.stopPropagation();});
+    h2.addEventListener("blur",function(){var nv=this.textContent.trim()||"Untitled";if(nv!==p.name){log("Renamed pillar <b>"+esc(p.name)+"</b> → <b>"+esc(nv)+"</b>");p.name=nv;save();refreshFilters();}});
+    sec.appendChild(head);
+    if(!p.collapsed){
+      var body=document.createElement("div");body.className="pillar-body";
+      var tbl=document.createElement("table");
+      tbl.innerHTML='<thead><tr><th>Dependency &amp; service it supports</th><th class="ctr">Workaround exists?</th>'+
+        '<th class="ctr">Documented?</th><th class="ctr">Tested?</th><th>Sustains for</th><th>Status</th><th>Notes</th><th></th></tr></thead>';
+      var tb=document.createElement("tbody");
+      vis.forEach(function(it){tb.appendChild(rowEl(p,it));});
+      var aTr=document.createElement("tr"),aTd=document.createElement("td");
+      aTd.colSpan=8;aTd.className="add-row";
+      var aBtn=document.createElement("button");aBtn.className="add-dep";aBtn.textContent="+ Add dependency to "+p.name;
+      aBtn.addEventListener("click",function(){addItem(p);});
+      aTd.appendChild(aBtn);aTr.appendChild(aTd);tb.appendChild(aTr);
+      tbl.appendChild(tb);body.appendChild(tbl);sec.appendChild(body);
+    }
+    board.appendChild(sec);
+  });
+  renderGapbar();renderProgress();
+}
+function rowEl(p,it){
+  var tr=document.createElement("tr");var st=statusOf(it);var moot=it.exists===false;
+  var tdN=document.createElement("td");tdN.setAttribute("data-l","Dependency");
+  tdN.innerHTML='<span class="dep-name" contenteditable="true" spellcheck="false">'+esc(it.name)+'</span>'+
+    '<span class="dep-cbs" contenteditable="true" spellcheck="false">'+esc(it.cbs||"")+'</span>';
+  var nm=tdN.querySelector(".dep-name"),cb=tdN.querySelector(".dep-cbs");
+  nm.addEventListener("blur",function(){var nv=this.textContent.trim()||"Untitled";if(nv!==it.name){log("Renamed <b>"+esc(it.name)+"</b> → <b>"+esc(nv)+"</b>");it.name=nv;save();}});
+  cb.addEventListener("blur",function(){var nv=this.textContent.trim();if(nv!==it.cbs){it.cbs=nv;save();markDirty();refreshFilters();}});
+  if(it.bo2&&it.bo2.tier){var rto=document.createElement("span");rto.className="cbs-rto";
+    rto.textContent="RTO "+tierShort(it.bo2.tier);rto.title="Service recovery target (from BO2): "+it.bo2.tier;
+    rto.style.color=colorOf(it.bo2.rto);rto.style.borderColor=colorOf(it.bo2.rto);tdN.appendChild(rto);}
+  if(it.bo3&&it.bo3.spof){var sp=document.createElement("span");sp.className="bo3-spof";sp.textContent="SPoF";
+    sp.title="Single point of failure (from BO3)"+(it.bo3.spof_auto?" — auto-flagged":"")+(it.bo3.cascade?"\n"+it.bo3.cascade:"");tdN.appendChild(sp);}
+  if(it.bo3&&it.bo3.halts>0){var hl=document.createElement("span");hl.className="bo3-halts";hl.textContent="halts "+it.bo3.halts;
+    hl.title="Loss of this dependency halts "+it.bo3.halts+" critical service"+(it.bo3.halts===1?"":"s")+" (from BO3)";tdN.appendChild(hl);}
+  var tSel=document.createElement("select");tSel.className="dep-type "+(it.type?("t-"+it.type):"untyped");tSel.title="Dependency type";
+  var op0=document.createElement("option");op0.value="";op0.textContent="+ type";if(!it.type)op0.selected=true;tSel.appendChild(op0);
+  DEPTYPES.forEach(function(t){var o=document.createElement("option");o.value=t.v;o.textContent=t.label;if(t.v===it.type)o.selected=true;tSel.appendChild(o);});
+  tSel.addEventListener("change",function(){var o=typeLabel(it.type),n=typeLabel(this.value);it.type=this.value;
+    this.className="dep-type "+(it.type?("t-"+it.type):"untyped");log("<b>"+esc(it.name)+"</b> · type: "+o+" → "+n);save();render();});
+  tdN.appendChild(tSel);
+  tr.appendChild(tdN);
+  tr.appendChild(ynCell(it,"exists","Workaround exists?",false));
+  tr.appendChild(ynCell(it,"documented","Documented?",moot));
+  tr.appendChild(ynCell(it,"tested","Tested?",moot));
+  var tdS=document.createElement("td");tdS.setAttribute("data-l","Sustains for");
+  if(moot){tdS.innerHTML='<span class="moot-note">n/a</span>';}
+  else{
+    var sel=document.createElement("select");sel.className="sustain"+(it.sustain===""?" unset":"");
+    SUSTAIN.forEach(function(o){var op=document.createElement("option");op.value=o.v;op.textContent=o.label;if(o.v===it.sustain)op.selected=true;sel.appendChild(op);});
+    sel.style.borderLeftColor=colorOf(it.sustain);
+    sel.addEventListener("change",function(){var oL=labelOf(it.sustain),nL=labelOf(this.value);it.sustain=this.value;
+      log("<b>"+esc(it.name)+"</b> · sustains for: "+oL+" → "+nL);save();render();});
+    tdS.appendChild(sel);
+  }
+  tr.appendChild(tdS);
+  var tdSt=document.createElement("td");tdSt.setAttribute("data-l","Status");
+  tdSt.innerHTML='<span class="status '+st.k+'"><span class="sd"></span>'+st.label+'<span class="rtip">'+esc(st.why)+'</span></span>';
+  tr.appendChild(tdSt);
+  var tdNo=document.createElement("td");tdNo.setAttribute("data-l","Notes");
+  var ta=document.createElement("textarea");ta.className="notes-in";ta.rows=1;ta.placeholder="Detail, owner, scale, caveats…";ta.value=it.notes||"";
+  ta.addEventListener("input",function(){it.notes=this.value;});
+  ta.addEventListener("focus",function(){this.dataset.prev=this.value;});
+  ta.addEventListener("blur",function(){save();if((this.dataset.prev||"")!==this.value){log("Note on <b>"+esc(it.name)+"</b>: "+esc(this.value||"(cleared)"));}});
+  tdNo.appendChild(ta);tr.appendChild(tdNo);
+  var tdD=document.createElement("td");tdD.setAttribute("data-l","");
+  var del=document.createElement("button");del.className="row-del";del.innerHTML="🗑";del.title="Remove dependency";
+  del.addEventListener("click",function(){if(confirm('Remove "'+it.name+'" from '+p.name+'?')){
+    p.items=p.items.filter(function(x){return x.id!==it.id;});log("Removed dependency <b>"+esc(it.name)+"</b> from "+esc(p.name));save();render();}});
+  tdD.appendChild(del);tr.appendChild(tdD);
+  return tr;
+}
+function ynCell(it,field,label,moot){
+  var td=document.createElement("td");td.className="ctr";td.setAttribute("data-l",label);
+  if(moot){td.innerHTML='<span class="moot-note">n/a</span>';return td;}
+  var w=document.createElement("div");w.className="yn";
+  var by=document.createElement("button");by.className="y"+(it[field]===true?" on":"");by.textContent="Yes";
+  var bn=document.createElement("button");bn.className="n"+(it[field]===false?" on":"");bn.textContent="No";
+  by.addEventListener("click",function(){setField(it,field,it[field]===true?null:true,label);});
+  bn.addEventListener("click",function(){setField(it,field,it[field]===false?null:false,label);});
+  w.appendChild(by);w.appendChild(bn);td.appendChild(w);return td;
+}
+function setField(it,field,val,label){
+  var o=it[field]===true?"Yes":it[field]===false?"No":"—",n=val===true?"Yes":val===false?"No":"—";
+  it[field]=val;log("<b>"+esc(it.name)+"</b> · "+label+": "+o+" → "+n);save();render();
+}
+function mini(n,k,word){if(!n)return "";return '<span class="mini '+k+'">'+n+' '+word+'</span>';}
+function labelOf(v){for(var i=0;i<SUSTAIN.length;i++)if(SUSTAIN[i].v===v)return SUSTAIN[i].label;return "—";}
+function colorOf(v){for(var i=0;i<SUSTAIN.length;i++)if(SUSTAIN[i].v===v)return SUSTAIN[i].c;return "var(--line)";}
+function esc(s){return (s==null?"":String(s)).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+
+function renderGapbar(){
+  var c={red:0,amber:0,green:0,slate:0};
+  state.pillars.forEach(function(p){p.items.forEach(function(it){c[statusOf(it).k]++;});});
+  document.getElementById("gapbar").innerHTML=
+    card("red",c.red,"Critical gaps")+card("amber",c.amber,"At risk")+card("green",c.green,"Resilient")+card("slate",c.slate,"Not assessed");
+  function card(k,n,t){return '<div class="gapcard"><span class="dot '+k+'"></span><div><div class="n">'+n+'</div><div class="t">'+t+'</div></div></div>';}
+}
+function renderProgress(){
+  var total=0,done=0;
+  state.pillars.forEach(function(p){p.items.forEach(function(it){total++;if(statusOf(it).k!=="slate")done++;});});
+  document.getElementById("p-done").textContent=done;document.getElementById("p-total").textContent=total;
+}
+
+function addItem(p){var name=prompt("New dependency name:","");if(!name)return;name=name.trim();if(!name)return;
+  p.items.push({id:uid(),name:name,cbs:"",type:"",exists:null,documented:null,tested:null,sustain:"",notes:""});
+  log("Added dependency <b>"+esc(name)+"</b> to "+esc(p.name));save();render();}
+document.getElementById("b-add-pillar").addEventListener("click",function(){var name=prompt("New pillar / dependency category:","");
+  if(!name)return;name=name.trim();if(!name)return;state.pillars.push({id:uid(),name:name,items:[]});
+  log("Added pillar <b>"+esc(name)+"</b>");save();refreshFilters();render();});
+
+var mFac=document.getElementById("m-fac"),mDate=document.getElementById("m-date"),mRound=document.getElementById("m-round");
+function syncMeta(){mFac.value=state.meta.facilitator||"";mDate.value=state.meta.date||"";mRound.value=state.meta.round||"";}
+mFac.addEventListener("change",function(){state.meta.facilitator=this.value;save();});
+mDate.addEventListener("change",function(){state.meta.date=this.value;save();});
+mRound.addEventListener("change",function(){state.meta.round=this.value;save();});
+
+var fPillar=document.getElementById("f-pillar"),fStatus=document.getElementById("f-status"),fSearch=document.getElementById("f-search");
+var fCbs=document.getElementById("f-cbs"),fType=document.getElementById("f-type");
+function refreshFilters(){
+  var cur=fPillar.value;fPillar.innerHTML='<option value="">All</option>';
+  state.pillars.forEach(function(p){var o=document.createElement("option");o.value=p.id;o.textContent=p.name;fPillar.appendChild(o);});
+  fPillar.value=state.pillars.some(function(p){return p.id===cur;})?cur:"";filters.pillar=fPillar.value;
+  // Service (CBS) options — distinct services split out of each dependency's "supports" line
+  var cl=cbsList(),curC=fCbs.value;fCbs.innerHTML='<option value="">All</option>';
+  cl.forEach(function(s){var o=document.createElement("option");o.value=s.toLowerCase();o.textContent=s;fCbs.appendChild(o);});
+  fCbs.value=cl.some(function(s){return s.toLowerCase()===curC;})?curC:"";filters.cbs=fCbs.value;
+  // Type options — built once from the taxonomy
+  if(!fType.options.length){fType.innerHTML='<option value="">All</option>';
+    DEPTYPES.forEach(function(t){var o=document.createElement("option");o.value=t.v;o.textContent=t.label;fType.appendChild(o);});}
+}
+fPillar.addEventListener("change",function(){filters.pillar=this.value;render();});
+fStatus.addEventListener("change",function(){filters.status=this.value;render();});
+fType.addEventListener("change",function(){filters.type=this.value;render();});
+fCbs.addEventListener("change",function(){filters.cbs=this.value;render();});
+fSearch.addEventListener("input",function(){filters.search=this.value.trim();render();});
+document.getElementById("b-clear").addEventListener("click",function(){
+  filters={pillar:"",status:"",cbs:"",type:"",search:""};
+  fPillar.value="";fStatus.value="";fCbs.value="";fType.value="";fSearch.value="";render();});
+
+document.getElementById("b-present").addEventListener("click",function(){document.body.classList.toggle("present");
+  this.textContent=document.body.classList.contains("present")?"Exit present":"Present";});
+
+/* ---------- activity log drawer ---------- */
+var drawer=document.getElementById("drawer"),drawerBg=document.getElementById("drawer-bg");
+function openLog(){renderLog();drawer.classList.add("open");drawerBg.classList.add("open");}
+function closeLog(){drawer.classList.remove("open");drawerBg.classList.remove("open");}
+document.getElementById("b-log").addEventListener("click",openLog);
+document.getElementById("b-close-log").addEventListener("click",closeLog);
+drawerBg.addEventListener("click",closeLog);
+function renderLog(){var b=document.getElementById("log-body");
+  if(!state.log.length){b.innerHTML='<div class="empty">No activity yet. Every move you make is captured here with a timestamp and rolls into the AI export.</div>';return;}
+  b.innerHTML="";state.log.forEach(function(e){var d=document.createElement("div");d.className="logitem";
+    d.innerHTML='<div class="ts">'+fmtTs(e.ts)+'</div><div class="tx">'+e.text+'</div>';b.appendChild(d);});}
+document.getElementById("b-log-clear").addEventListener("click",function(){
+  if(confirm("Clear the activity log? Your assessment data stays; only the event trail is removed.")){state.log=[];save();renderLog();}});
+document.getElementById("b-drawer-export").addEventListener("click",exportLog);
+function fmtTs(iso){var d=new Date(iso);return d.toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});}
+function fmtTsFull(iso){var d=new Date(iso);return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+" "+pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds());}
+function pad(n){return (n<10?"0":"")+n;}
+function stripTags(s){return s.replace(/<[^>]+>/g,"").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"');}
+
+/* ---------- the single detailed export for AI ingestion ---------- */
+function exportLog(){
+  var L=[];
+  L.push("ENTERPRISE RESILIENCE WORKOUT — HEALTHCO DEMO (FICTIONAL CLIENT)");
+  L.push("BREAKOUT 4 — WORKAROUND & RECOVERY ASSESSMENT");
+  L.push("Detailed capture log for AI synthesis. Self-contained: full final state + complete chronological event trail.");
+  L.push("");
+  L.push("=== SESSION ===");
+  L.push("Facilitator : "+(state.meta.facilitator||"(not set)"));
+  L.push("Session date: "+(state.meta.date||"(not set)"));
+  L.push("Round       : "+(state.meta.round||"(not set)"));
+  L.push("Exported    : "+fmtTsFull(new Date().toISOString())+" (local time)");
+  L.push("Sustainability scale mirrors the recovery-tier time bands: T1 <4h | T2 4-24h | T3 1-3d | T4 3-7d | T5 >1wk");
+  L.push("Status rule: No workaround = Critical gap (SPOF). Workaround that is undocumented, untested, or sustains <24h = At risk. Documented + tested + sustains >24h = Resilient.");
+  L.push("Dependency types: "+DEPTYPES.map(function(t){return t.label;}).join(" | "));
+  L.push("");
+  var c={red:0,amber:0,green:0,slate:0},total=0;
+  state.pillars.forEach(function(p){p.items.forEach(function(it){c[statusOf(it).k]++;total++;});});
+  L.push("=== SUMMARY COUNTS ===");
+  L.push("Critical gaps (no workaround) : "+c.red);
+  L.push("At risk (unproven/short-lived): "+c.amber);
+  L.push("Resilient                     : "+c.green);
+  L.push("Not assessed                  : "+c.slate);
+  L.push("Assessed                      : "+(total-c.slate)+" of "+total);
+  L.push("");
+  var tc={},tUn=0;DEPTYPES.forEach(function(t){tc[t.v]=0;});
+  state.pillars.forEach(function(p){p.items.forEach(function(it){if(it.type&&tc.hasOwnProperty(it.type))tc[it.type]++;else tUn++;});});
+  L.push("=== SUMMARY BY DEPENDENCY TYPE ===");
+  DEPTYPES.forEach(function(t){L.push(t.label+" : "+tc[t.v]);});
+  if(tUn)L.push("Untyped : "+tUn);
+  L.push("");
+  var anyBo3=false,spofN=0,bandC={critical:0,high:0,moderate:0,low:0,unrated:0};
+  state.pillars.forEach(function(p){p.items.forEach(function(it){if(it.bo3){anyBo3=true;if(it.bo3.spof)spofN++;var b=it.bo3.band||"unrated";if(bandC.hasOwnProperty(b))bandC[b]++;else bandC.unrated++;}});});
+  if(anyBo3){
+    L.push("=== RISK PROFILE (carried from BO3) ===");
+    L.push("Single points of failure flagged: "+spofN);
+    L.push("By risk band — critical:"+bandC.critical+"  high:"+bandC.high+"  moderate:"+bandC.moderate+"  low:"+bandC.low+(bandC.unrated?"  unrated:"+bandC.unrated:""));
+    L.push("");
+  }
+  L.push("=== CURRENT STATE (by pillar) ===");
+  state.pillars.forEach(function(p){
+    L.push("");L.push("## "+p.name+"  ["+p.items.length+" dependencies]");
+    if(!p.items.length){L.push("  (none)");return;}
+    p.items.forEach(function(it){
+      var st=statusOf(it),moot=it.exists===false;
+      L.push("- ["+typeLabel(it.type)+"]"+(it.bo3&&it.bo3.spof?" [SPoF]":"")+" "+it.name+(it.cbs?"  | supports: "+it.cbs:"")+(it.bo3?"  | BO3 risk: "+it.bo3.band+(it.bo3.halts?", halts "+it.bo3.halts:""):""));
+      L.push("    workaround exists: "+yn(it.exists)+" | documented: "+(moot?"n/a":yn(it.documented))+
+             " | tested: "+(moot?"n/a":yn(it.tested))+" | sustains: "+(moot?"n/a":labelOf(it.sustain)));
+      L.push("    STATUS: "+st.label.toUpperCase()+" — "+st.why);
+      if(it.notes)L.push("    notes: "+it.notes);
+    });
+  });
+  L.push("");
+  L.push("=== CHRONOLOGICAL EVENT LOG (oldest first) ===");
+  if(!state.log.length){L.push("  (no events captured)");}
+  else{state.log.slice().reverse().forEach(function(e){L.push("["+fmtTsFull(e.ts)+"] "+stripTags(e.text));});}
+  L.push("");
+  L.push("=== END OF LOG ===");
+  var txt=L.join("\n");
+  var stamp=(state.meta.date||"session")+"_"+(state.meta.round||"").replace(/[^a-z0-9]+/gi,"-").replace(/^-|-$/g,"").toLowerCase();
+  downloadFile(txt,"HealthCo-BO4-workaround-log_"+stamp+".md","text/markdown");
+  clearDirty();
+}
+document.getElementById("b-export").addEventListener("click",exportLog);
+function yn(v){return v===true?"Yes":v===false?"No":"—";}
+
+/* ---------- save / load (.json) for persistence + multi-SMR merge ---------- */
+document.getElementById("b-save").addEventListener("click",function(){
+  downloadFile(JSON.stringify(state,null,2),"HealthCo-BO4-workaround-assessment.json","application/json");});
+document.getElementById("b-reset").addEventListener("click",function(){
+  if(!confirm("Reset the board to the starting scaffold?\n\nAll assessments and imported dependencies are cleared. The activity log is kept."))return;
+  var keep=(state&&state.log)?state.log:[];
+  state=seed();state.log=keep;
+  log("Process reset selected \u2014 board cleared to scaffold; log retained");
+  save();syncMeta();refreshFilters();render();toast("Board reset");});
+var fileIn=document.getElementById("file-in");
+document.getElementById("b-load").addEventListener("click",function(){fileIn.value="";fileIn.click();});
+fileIn.addEventListener("change",function(){var f=this.files[0];if(!f)return;var rd=new FileReader();
+  rd.onload=function(){try{
+    var raw=String(rd.result||"").replace(/^\uFEFF/,"");
+    if(/\.csv$/i.test(f.name)||/^[^\[{]/.test(raw.trim())){
+      toast("That looks like a CSV. BO4 imports JSON \u2014 in BO3 use \u2018Download risk register (JSON)\u2019, or BO2\u2019s JSON export.");return;}
+    var data=JSON.parse(raw);
+    var bo3=isBO3(data),bo2=!bo3&&isBO2(data);
+    if(!bo3&&!bo2&&(!data||!data.pillars))throw new Error("bad");
+    var payload=bo3?bo3ToState(data):(bo2?bo2ToState(data):data);
+    var kind=bo3?"BO3 risk register":(bo2?"BO2 dependency map":"file");
+    var n=bo3?countDeps(data):(bo2?countCells(data):0);
+    var msg=bo3
+      ? "Import BO3 risk register — "+n+" risk-rated dependencies (deduped), grouped by risk band.\n\nOK = replace this assessment with the BO3 dependencies.\nCancel = merge them into what's already here."
+      :bo2
+      ? "Import BO2 dependency map — "+n+" dependencies across "+(data.groups?data.groups.length:0)+" groups.\n\nOK = replace this assessment with the BO2 map.\nCancel = merge BO2 dependencies into what's already here."
+      : "Load this file.\n\nOK = replace everything with the loaded file.\nCancel = merge (fold its dependencies into matching pillars).";
+    var replace=confirm(msg);
+    if(replace){state=payload;}else{mergeIn(payload);}
+    if(!state.log)state.log=[];
+    log("Loaded "+kind+" <b>"+esc(f.name)+"</b> ("+(replace?"replace":"merge")+((bo3||bo2)?", "+n+" dependencies":"")+")");
+    save();syncMeta();refreshFilters();render();toast(((bo3||bo2)?"Imported ":"Loaded ")+f.name);
+  }catch(e){toast("Couldn't read that file — expected a BO4 save (.json), a BO3 risk register, or a BO2 dependency map.");}};
+  rd.readAsText(f);});
+function mergeIn(data){data.pillars.forEach(function(np){
+  var ex=state.pillars.filter(function(p){return p.name.toLowerCase()===np.name.toLowerCase();})[0];
+  if(!ex){ex={id:uid(),name:np.name,items:[]};state.pillars.push(ex);}
+  np.items.forEach(function(ni){var m=ex.items.filter(function(i){return i.name.toLowerCase()===ni.name.toLowerCase();})[0];
+    if(m){["exists","documented","tested"].forEach(function(f){if(m[f]===null&&ni[f]!==null)m[f]=ni[f];});
+      if(!m.sustain&&ni.sustain)m.sustain=ni.sustain;
+      if(ni.notes)m.notes=(m.notes?m.notes+" | ":"")+ni.notes;
+      if(!m.cbs&&ni.cbs)m.cbs=ni.cbs;
+      if(!m.type&&ni.type)m.type=ni.type;}
+    else{ni.id=uid();ex.items.push(ni);}});});}
+
+/* ---------- download + toast ---------- */
+function downloadFile(text,name,mime){try{var blob=new Blob([text],{type:mime||"text/plain"}),url=URL.createObjectURL(blob);
+  var a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(function(){URL.revokeObjectURL(url);a.remove();},150);toast("Saved "+name);}
+  catch(e){toast("Download blocked here — run the file locally to export.");}}
+var toastEl=document.getElementById("toast"),toastT;
+function toast(msg){toastEl.textContent=msg;toastEl.classList.add("show");clearTimeout(toastT);toastT=setTimeout(function(){toastEl.classList.remove("show");},2200);}
+
+/* ---------- init ---------- */
+syncMeta();refreshFilters();render();
+</script>
+</body>
+</html>
